@@ -21,16 +21,24 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // Allow no-origin requests (curl, Render health pings, etc.)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    // Also allow any vercel.app preview deployments
+    if (!origin) return callback(null, true);
+    // Allow any vercel.app deployment (covers preview URLs too)
     if (origin.endsWith('.vercel.app')) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS blocked: ${origin}`));
   },
-}));
-app.use(express.json({ limit: '10kb' })); // Prevent oversized payloads
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+};
+
+// Handle preflight OPTIONS requests explicitly
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10kb' }));
 
 // ── Routes ──────────────────────────────────────────────
 app.use('/api/chat', chatRoutes);
