@@ -1,12 +1,13 @@
 /**
  * geminiService.js
- * -------------------------------------------------------
- * Handles all communication with the Gemini API.
- * This is the ONLY file that calls Gemini.
- * AI responsibility: intent understanding, follow-up
- * questions, recommendation reasoning.
- * Deterministic logic lives in productFilterService.js.
- * -------------------------------------------------------
+ *
+ * This is the only file that talks to Gemini. Keeping it isolated
+ * so if we ever switch models, the rest of the codebase doesn't care.
+ *
+ * Two things worth noting:
+ * - We retry once on failure. Most Gemini errors are transient.
+ * - We force JSON output via responseMimeType. If it still breaks,
+ *   parseGeminiResponse() catches it and returns a safe fallback.
  */
 
 const axios = require('axios');
@@ -14,66 +15,53 @@ const axios = require('axios');
 const GEMINI_API_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-const MAX_RETRIES = 1; // Retry once on transient failure (per spec)
+const MAX_RETRIES = 1;
 
-/**
- * System prompt — the core brain of the shopping agent.
- * Defines strict output schema so the backend can parse
- * AI responses deterministically.
- */
-const SYSTEM_PROMPT = `You are ShopSense — an intelligent AI shopping assistant.
+// The system prompt is doing a lot of heavy lifting here.
+// Key insight: we tell Gemini to output structured JSON with a "type" field.
+// That lets the controller decide whether to show products or keep asking questions
+// without any AI involvement in that branching logic.
+const SYSTEM_PROMPT = `You are ShopSense — an AI shopping assistant that helps people find the right product through conversation.
 
-Your role is to help users find the RIGHT product through conversation, NOT to list everything at once.
+Your job is NOT to list every option. It's to ask the right questions and then recommend confidently.
 
-## Your Core Behaviour
-1. Ask 1–2 targeted follow-up questions before recommending anything.
-2. Always understand: budget, use-case, style preference, and key requirements.
-3. When you have enough info, recommend specific products with clear reasoning.
-4. Explain WHY each product fits this specific user's needs — not generic descriptions.
-5. Handle tradeoffs explicitly: "Product A costs more but lasts longer. Product B is cheaper but has fewer features."
-6. Never recommend more than 4 products at once.
+## How you should behave
+1. Ask 1–2 follow-up questions before recommending anything. You need: budget, use-case, and style/preference.
+2. When you have enough info, recommend specific products (max 4) with honest reasoning.
+3. Explain tradeoffs clearly — "this one costs more but the battery lasts twice as long" is more useful than specs.
+4. Never recommend products you don't know exist. The system will look them up using your filters.
 
-## Available Product Categories
+## Product categories available
 Electronics: smartphones, laptops, headphones, earbuds, smartwatches, speakers, TVs, gaming peripherals
 Footwear: sneakers, running shoes, formal shoes, boots
 Clothing: jeans, t-shirts, shirts, jackets, blazers
 Accessories: bags, backpacks
 
-## Output Format (STRICT JSON — never deviate)
-You MUST always respond with a valid JSON object in this exact schema:
-
+## Output format — always return this exact JSON structure
 {
   "type": "question" | "recommendation" | "clarification",
-  "message": "Your conversational reply to the user",
+  "message": "what you say to the user",
   "filters": {
     "category": "electronics|footwear|clothing|accessories|null",
     "subcategory": "headphones|laptop|sneakers|etc|null",
-    "maxBudget": number_or_null,
-    "minBudget": number_or_null,
+    "maxBudget": number or null,
+    "minBudget": number or null,
     "style": "casual|premium|gaming|formal|budget|outdoor|sport|null",
-    "useCases": ["array", "of", "use", "cases"],
-    "brand": "preferred_brand_or_null",
+    "useCases": ["array of use cases"],
+    "brand": "brand name or null",
     "sortBy": "relevance|price_asc|price_desc|rating"
   },
   "productIds": [],
-  "reasoning": "Explain tradeoffs and why these products fit THIS user"
+  "reasoning": "why these products fit this specific person"
 }
 
-## Rules
-- If type is "question": productIds must be empty. Ask only what you still need to know.
-- If type is "recommendation": fill filters fully, provide reasoning.
-- If the user's message is off-topic: set type to "clarification" and gently redirect.
-- Prices are in Indian Rupees (INR ₹).
-- Budget in INR: "2000 rupees" = 2000, "2k" = 2000, "20k" = 20000, "1 lakh" = 100000.
-- Never make up product names. The system will look up real products using your filters.
-- Keep "message" friendly, concise, and helpful — not robotic.
-- Do NOT wrap JSON in markdown code fences. Return raw JSON only.`;
+## A few rules
+- type "question" = you still need more info. productIds stays empty.
+- type "recommendation" = you have enough. Fill filters properly.
+- Prices are in Indian Rupees. "5k" = 5000, "1 lakh" = 100000.
+- Keep your "message" conversational, not robotic.
+- Return raw JSON only — no markdown fences around it.`;
 
-/**
- * Call Gemini API with retry logic.
- * @param {Array} conversationHistory - [{role, parts:[{text}]}]
- * @returns {Object} - parsed AI response object
- */
 async function callGemini(conversationHistory) {
   let lastError = null;
 
@@ -100,24 +88,18 @@ async function callGemini(conversationHistory) {
     } catch (err) {
       lastError = err;
       if (attempt < MAX_RETRIES) {
-        // Wait 1s before retry
         await new Promise((r) => setTimeout(r, 1000));
       }
     }
   }
 
-  // Both attempts failed — return a safe fallback
-  console.error('[GeminiService] All attempts failed:', lastError?.message);
+  console.error('[Gemini] Both attempts failed:', lastError?.message);
   return getFallbackResponse();
 }
 
-/**
- * Parse and validate the JSON returned by Gemini.
- * If malformed, return a graceful fallback.
- */
 function parseGeminiResponse(rawText) {
   try {
-    // Strip markdown fences if Gemini disobeys instructions
+    // Strip markdown fences if Gemini ignores our instructions
     const cleaned = rawText
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
@@ -126,12 +108,11 @@ function parseGeminiResponse(rawText) {
 
     const parsed = JSON.parse(cleaned);
 
-    // Validate required fields
     if (!parsed.type || !parsed.message) {
-      throw new Error('Missing required fields in Gemini response');
+      throw new Error('Missing required fields');
     }
 
-    // Sanitise filters with defaults
+    // Fill in defaults for anything missing
     parsed.filters = {
       category: null,
       subcategory: null,
@@ -149,29 +130,21 @@ function parseGeminiResponse(rawText) {
 
     return parsed;
   } catch (err) {
-    console.error('[GeminiService] Parse error:', err.message, '| Raw:', rawText?.slice(0, 200));
+    console.error('[Gemini] Parse failed:', err.message, '| Raw snippet:', rawText?.slice(0, 150));
     return getFallbackResponse();
   }
 }
 
-/**
- * Fallback response when Gemini fails or returns garbage.
- * Keeps the user experience intact.
- */
+// If Gemini completely dies, we don't crash the conversation.
+// We just ask the user to repeat themselves — most people won't even notice.
 function getFallbackResponse() {
   return {
     type: 'question',
     message:
-      "I'm having a moment — could you tell me a bit more about what you're looking for? For example: what's your budget and what will you mainly use it for?",
+      "Sorry, I lost my train of thought there! Could you tell me again what you're looking for and roughly what budget you have in mind?",
     filters: {
-      category: null,
-      subcategory: null,
-      maxBudget: null,
-      minBudget: null,
-      style: null,
-      useCases: [],
-      brand: null,
-      sortBy: 'relevance',
+      category: null, subcategory: null, maxBudget: null,
+      minBudget: null, style: null, useCases: [], brand: null, sortBy: 'relevance',
     },
     productIds: [],
     reasoning: '',
