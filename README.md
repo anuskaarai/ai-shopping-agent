@@ -1,5 +1,7 @@
 # ShopSense — AI Shopping Agent
 
+**Live:** [ai-shopping-agent-alpha.vercel.app](https://ai-shopping-agent-alpha.vercel.app) · Backend: [Render](https://ai-shopping-agent-wp5h.onrender.com/api/health)
+
 Shopping online is genuinely painful. You type "laptop" and get 847 results, 60 filter options, and zero guidance on what actually matters for what you need. I built ShopSense to fix that.
 
 The idea is simple: instead of filtering, you have a conversation. You tell it what you're looking for, it asks you a couple of smart questions, and then it explains exactly why it's recommending what it recommends. No "sponsored" badges, no dark patterns — just honest reasoning.
