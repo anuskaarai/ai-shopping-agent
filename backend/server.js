@@ -35,8 +35,8 @@ const corsOptions = {
   credentials: false,
 };
 
-// Handle preflight OPTIONS requests explicitly
-app.options('*', cors(corsOptions));
+// Handle preflight OPTIONS requests — use regex, Express 5 doesn't accept '*'
+app.options(/.*/, cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 
