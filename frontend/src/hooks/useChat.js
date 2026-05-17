@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 
+// In dev: VITE_API_URL is empty → Vite proxy forwards /api to localhost:5000
+// In prod: VITE_API_URL is set to the full Render backend URL
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 /**
  * useChat — Core state machine for the shopping agent conversation.
  *
@@ -46,7 +50,7 @@ export function useChat() {
 
     try {
       const response = await axios.post(
-        '/api/chat',
+        `${API_BASE}/api/chat`,
         {
           message: text.trim(),
           history: geminiHistory.current,
