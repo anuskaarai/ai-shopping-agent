@@ -125,7 +125,7 @@ export default function ProductCard({ product, delay = 0 }) {
           </div>
         </div>
         <a
-          href={`https://www.amazon.in/s?k=${encodeURIComponent(name)}`}
+          href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(name)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-glow"

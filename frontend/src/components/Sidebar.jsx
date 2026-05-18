@@ -1,6 +1,6 @@
 import { MessageSquare, PlusCircle, LogOut } from 'lucide-react';
 
-export default function Sidebar({ sessions, currentSessionId, onSelectSession, onNewSession, onLogout }) {
+export default function Sidebar({ user, sessions, currentSessionId, onSelectSession, onNewSession, onLogout }) {
   return (
     <div style={{
       width: '260px',
@@ -74,19 +74,39 @@ export default function Sidebar({ sessions, currentSessionId, onSelectSession, o
         )}
       </div>
 
-      <div style={{ padding: '1rem', borderTop: '1px solid rgba(139,90,43,0.1)' }}>
+      <div style={{ padding: '1rem', borderTop: '1px solid rgba(139,90,43,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {user?.avatar ? (
+            <img src={user.avatar} alt="Profile" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+          ) : (
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,90,43,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8B5E3C', fontWeight: 'bold' }}>
+              {user?.name?.charAt(0) || 'U'}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>{user?.name || 'User'}</span>
+          </div>
+        </div>
+
         <button
           onClick={onLogout}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.5rem', background: 'transparent', border: 'none',
-            color: 'var(--text-secondary)', fontSize: '0.85rem', cursor: 'pointer',
-            transition: 'color 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0.4rem', background: 'transparent', border: 'none',
+            color: 'var(--text-secondary)', cursor: 'pointer',
+            transition: 'color 0.2s', borderRadius: '6px',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = '#c0392b'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+          title="Sign out"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#c0392b';
+            e.currentTarget.style.background = 'rgba(180,60,60,0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.background = 'transparent';
+          }}
         >
-          <LogOut size={16} /> Sign out
+          <LogOut size={16} />
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
-import { ShoppingBag, Sparkles, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Sparkles } from 'lucide-react';
 
-export default function Header({ onReset }) {
+export default function Header() {
   return (
     <header style={{
       borderBottom: '1px solid rgba(139,90,43,0.15)',
@@ -49,30 +49,6 @@ export default function Header({ onReset }) {
           <Sparkles size={10} />
           Powered by Gemini
         </div>
-
-        {/* Reset */}
-        <button
-          onClick={onReset}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            padding: '0.45rem 0.9rem', borderRadius: '0.625rem',
-            border: '1px solid rgba(139,90,43,0.22)',
-            background: 'transparent', color: 'var(--text-secondary)',
-            fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-            e.currentTarget.style.background = 'rgba(139,90,43,0.08)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(139,90,43,0.22)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          <RefreshCw size={13} /> New Search
-        </button>
       </div>
     </header>
   );

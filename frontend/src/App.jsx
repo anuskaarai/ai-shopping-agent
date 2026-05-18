@@ -8,7 +8,10 @@ import Login from './components/Login';
 import { useChat } from './hooks/useChat';
 
 export default function App() {
-  const [user, setUser] = useState(() => localStorage.getItem('user'));
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [sessions, setSessions] = useState(() => {
     const saved = localStorage.getItem('chat_sessions');
     return saved ? JSON.parse(saved) : [];
@@ -41,9 +44,9 @@ export default function App() {
     }
   }, [messages, currentSessionId]);
 
-  const handleLogin = () => {
-    localStorage.setItem('user', 'true');
-    setUser('true');
+  const handleLogin = (userData) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
   };
 
   const handleLogout = () => {
@@ -70,9 +73,10 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <Header onReset={handleNewSession} />
+      <Header />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar
+          user={user}
           sessions={sessions}
           currentSessionId={currentSessionId}
           onSelectSession={handleSelectSession}
