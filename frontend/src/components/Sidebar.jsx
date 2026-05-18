@@ -1,6 +1,6 @@
-import { MessageSquare, PlusCircle, LogOut, Trash2 } from 'lucide-react';
+import { MessageSquare, PlusCircle, LogOut, Trash2, X } from 'lucide-react';
 
-export default function Sidebar({ user, sessions, currentSessionId, onSelectSession, onNewSession, onClearHistory, onLogout }) {
+export default function Sidebar({ user, sessions, currentSessionId, onSelectSession, onNewSession, onClearHistory, onDeleteSession, onLogout }) {
   return (
     <div style={{
       width: '260px',
@@ -45,38 +45,66 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 0.5rem' }}>
         {sessions.map((session) => (
-          <button
+          <div 
             key={session.id}
-            onClick={() => onSelectSession(session.id)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.6rem 0.75rem',
-              background: session.id === currentSessionId ? 'rgba(139,90,43,0.1)' : 'transparent',
-              border: 'none',
-              borderRadius: '8px',
-              color: session.id === currentSessionId ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: session.id === currentSessionId ? 600 : 500,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'background 0.2s',
-              marginBottom: '2px',
-            }}
-            onMouseEnter={(e) => {
-              if (session.id !== currentSessionId) e.currentTarget.style.background = 'rgba(139,90,43,0.05)';
-            }}
-            onMouseLeave={(e) => {
-              if (session.id !== currentSessionId) e.currentTarget.style.background = 'transparent';
-            }}
+            style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}
           >
-            <MessageSquare size={14} color={session.id === currentSessionId ? '#8B5E3C' : 'var(--text-muted)'} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {session.title}
-            </span>
-          </button>
+            <button
+              onClick={() => onSelectSession(session.id)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.6rem 0.75rem',
+                background: session.id === currentSessionId ? 'rgba(139,90,43,0.1)' : 'transparent',
+                border: 'none',
+                borderRadius: '8px 0 0 8px',
+                color: session.id === currentSessionId ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: session.id === currentSessionId ? 600 : 500,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'rgba(139,90,43,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <MessageSquare size={14} color={session.id === currentSessionId ? '#8B5E3C' : 'var(--text-muted)'} />
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
+                {session.title}
+              </span>
+            </button>
+            <button
+              onClick={() => onDeleteSession(session.id)}
+              style={{
+                background: session.id === currentSessionId ? 'rgba(139,90,43,0.1)' : 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: '0.6rem 0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: '0 8px 8px 0',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#c0392b';
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'rgba(139,90,43,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-muted)';
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'transparent';
+              }}
+              title="Delete session"
+            >
+              <X size={14} />
+            </button>
+          </div>
         ))}
         {sessions.length === 0 && (
           <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>

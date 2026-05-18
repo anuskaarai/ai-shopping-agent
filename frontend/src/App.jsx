@@ -78,6 +78,18 @@ export default function App() {
     handleNewSession();
   };
 
+  const handleDeleteSession = (id) => {
+    localStorage.removeItem(id);
+    setSessions(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      localStorage.setItem('chat_sessions', JSON.stringify(updated));
+      return updated;
+    });
+    if (currentSessionId === id) {
+      handleNewSession();
+    }
+  };
+
   if (!user) {
     return <Login onLogin={handleLogin} />;
   }
@@ -95,6 +107,7 @@ export default function App() {
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
           onClearHistory={handleClearHistory}
+          onDeleteSession={handleDeleteSession}
           onLogout={handleLogout}
         />
         <main style={{
