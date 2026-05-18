@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://ai-shopping-agent-wp5h.onrender.com';
 
 const WELCOME = "Hi! I'm **ShopSense** 🛍️ — your AI shopping assistant.\n\nTell me what you're looking for and I'll help you find the perfect product. I'll ask a couple of smart questions before recommending anything.\n\nWhat are you shopping for today?";
 
@@ -64,7 +64,7 @@ export function useChat(sessionId) {
       const response = await axios.post(
         `${API_BASE}/api/chat`,
         { message: text.trim(), history: geminiHistory.current },
-        { timeout: 25000 }
+        { timeout: 60000 }
       );
 
       const {
