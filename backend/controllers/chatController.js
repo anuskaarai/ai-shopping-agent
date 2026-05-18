@@ -73,8 +73,8 @@ async function handleChat(req, res) {
   } catch (err) {
     console.error('[ChatController] Error:', err);
     return res.status(500).json({
-      type: 'question',
-      message: "Something broke on my end. What were you looking for? I'll try again.",
+      type: 'error',
+      message: `Error: ${err.message || 'Something broke on my end.'}. Please check the server logs or API keys.`,
       preferences: {},
       products: [],
       reasoning: '',

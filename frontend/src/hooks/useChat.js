@@ -102,9 +102,16 @@ export function useChat(sessionId) {
       console.error('[useChat] Request failed:', err);
 
       let errorText = "I couldn't reach the server right now. Check your connection and try again.";
-      if (err.code === 'ECONNABORTED') errorText = 'The request timed out. Please try again.';
-      else if (err.response?.status === 400) errorText = "That input didn't look right — could you rephrase?";
-      else if (err.response?.status === 429) errorText = "Too many requests right now — give me a moment!";
+      
+      if (err.response?.data?.message) {
+        errorText = err.response.data.message;
+      } else if (err.code === 'ECONNABORTED') {
+        errorText = 'The request timed out. Please try again.';
+      } else if (err.response?.status === 400) {
+        errorText = "That input didn't look right — could you rephrase?";
+      } else if (err.response?.status === 429) {
+        errorText = "Too many requests right now — give me a moment!";
+      }
 
       setError(errorText);
       setMessages((prev) => [...prev, {
