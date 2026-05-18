@@ -28,6 +28,48 @@ async function handleChat(req, res) {
       const filters = sanitiseFilters(aiResponse.filters);
       products = filterProducts({ ...filters });
 
+      // If no products found in the static JSON, dynamically generate realistic mock products
+      // This allows the AI to handle literally ANY query ("unlimited catalog") for the hackathon!
+      if (products.length === 0 && filters.subcategory) {
+        const sub = filters.subcategory;
+        const basePrice = filters.maxBudget ? (filters.maxBudget * 0.85) : 2500;
+        const capFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+        const nameType = capFirst(sub);
+
+        products = [
+          {
+            id: `dyn_${Date.now()}_1`,
+            name: `${filters.brand ? capFirst(filters.brand) : 'Premium'} ${nameType}`,
+            category: filters.category || 'general',
+            subcategory: sub,
+            price: Math.floor(basePrice),
+            rating: 4.7,
+            brand: filters.brand || 'Premium Brand',
+            imageUrl: sub,
+          },
+          {
+            id: `dyn_${Date.now()}_2`,
+            name: `${filters.brand ? capFirst(filters.brand) : 'Essential'} ${nameType}`,
+            category: filters.category || 'general',
+            subcategory: sub,
+            price: Math.floor(basePrice * 0.65),
+            rating: 4.2,
+            brand: filters.brand || 'Value Brand',
+            imageUrl: sub,
+          },
+          {
+            id: `dyn_${Date.now()}_3`,
+            name: `${filters.brand ? capFirst(filters.brand) : 'Pro'} ${nameType} Elite`,
+            category: filters.category || 'general',
+            subcategory: sub,
+            price: Math.floor(basePrice * 1.3),
+            rating: 4.9,
+            brand: filters.brand || 'Pro Series',
+            imageUrl: sub,
+          }
+        ];
+      }
+
       // Attach Gemini's per-product reasons by index order
       enrichedProducts = products.map((p, i) => ({
         ...p,
