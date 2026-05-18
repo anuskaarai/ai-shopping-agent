@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 
 export default function Login({ onLogin }) {
+  const [showHelp, setShowHelp] = useState(false);
+
   const handleSuccess = (credentialResponse) => {
     try {
       const decoded = jwtDecode(credentialResponse.credential);
@@ -19,7 +22,15 @@ export default function Login({ onLogin }) {
 
   const handleError = () => {
     console.error('Google Login Failed');
-    alert('Google Login failed. If you see an origin mismatch error, please check the console or ensure your VITE_GOOGLE_CLIENT_ID is set correctly.');
+    setShowHelp(true);
+  };
+
+  const handleFallback = () => {
+    onLogin({
+      name: 'Anuskaa Rai',
+      email: 'anuskaarai@gmail.com',
+      avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Anuskaa&backgroundColor=f5efe6'
+    });
   };
 
   return (
@@ -31,7 +42,7 @@ export default function Login({ onLogin }) {
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.75rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Welcome to ShopSense</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>Your personal AI shopping assistant. Sign in to save your chat history and preferences.</p>
         
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
           <GoogleLogin
             onSuccess={handleSuccess}
             onError={handleError}
@@ -40,6 +51,19 @@ export default function Login({ onLogin }) {
             shape="rectangular"
             text="continue_with"
           />
+          {showHelp && (
+            <div style={{ padding: '1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'left' }}>
+              <strong>OAuth Error:</strong> The Google Client ID does not authorize this domain. To fix this, you must create a Client ID in Google Cloud Console and add it to your Vercel Environment Variables as <code>VITE_GOOGLE_CLIENT_ID</code>.
+              <br /><br />
+              For now, you can continue using a local test account:
+              <button 
+                onClick={handleFallback}
+                style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Continue in Hackathon Mode
+              </button>
+            </div>
+          )}
         </div>
 
         <p style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
