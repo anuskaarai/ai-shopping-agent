@@ -15,8 +15,6 @@ export function useChat() {
   const [products, setProducts] = useState([]);
   const [reasoning, setReasoning] = useState('');
   const [preferences, setPreferences] = useState({});
-  const [productReasons, setProductReasons] = useState({});
-  const [tradeoffNote, setTradeoffNote] = useState('');
   const [whyNot, setWhyNot] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -40,7 +38,7 @@ export function useChat() {
 
       const {
         message, products: recs, reasoning: why, type, _fallback,
-        preferences: prefs, productReasons: reasons, tradeoffNote: tradeoff, whyNot: excluded,
+        preferences: prefs, whyNot: excluded,
       } = response.data;
 
       const aiMsg = {
@@ -53,14 +51,11 @@ export function useChat() {
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Always update preferences so the summary box stays fresh
       if (prefs && Object.keys(prefs).length > 0) setPreferences(prefs);
 
       if (type === 'recommendation') {
         if (recs?.length > 0) setProducts(recs);
         setReasoning(why || '');
-        setProductReasons(reasons || {});
-        setTradeoffNote(tradeoff || '');
         setWhyNot(excluded || '');
       }
 
@@ -93,13 +88,12 @@ export function useChat() {
   const resetChat = useCallback(() => {
     geminiHistory.current = [];
     setProducts([]); setReasoning(''); setPreferences({});
-    setProductReasons({}); setTradeoffNote(''); setWhyNot('');
-    setError(null);
+    setWhyNot(''); setError(null);
     setMessages([{ id: 'welcome', role: 'assistant', text: WELCOME, type: 'greeting', timestamp: new Date() }]);
   }, []);
 
   return {
-    messages, products, reasoning, preferences, productReasons,
-    tradeoffNote, whyNot, isLoading, error, sendMessage, resetChat,
+    messages, products, reasoning, preferences,
+    whyNot, isLoading, error, sendMessage, resetChat,
   };
 }

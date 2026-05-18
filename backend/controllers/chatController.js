@@ -1,8 +1,6 @@
 /**
  * chatController.js
- *
- * Orchestrates: validate → call Gemini → filter products → return.
- * New fields pass through: preferences, productReasons, tradeoffNote, whyNot.
+ * Maps the flat recommendations[] from Gemini onto the filtered products by index.
  */
 
 const { callGemini } = require('../services/geminiService');
@@ -23,9 +21,21 @@ async function handleChat(req, res) {
     const aiResponse = await callGemini(conversationHistory);
 
     let products = [];
+    // Map recommendations[] onto products by position
+    let enrichedProducts = [];
+
     if (aiResponse.type === 'recommendation') {
       const filters = sanitiseFilters(aiResponse.filters);
-      products = filterProducts({ ...filters, productIds: aiResponse.productIds || [] });
+      products = filterProducts({ ...filters });
+
+      // Attach Gemini's per-product reasons by index order
+      enrichedProducts = products.map((p, i) => ({
+        ...p,
+        matchScore: aiResponse.recommendations[i]?.matchScore ?? null,
+        pros: aiResponse.recommendations[i]?.pros ?? [],
+        cons: aiResponse.recommendations[i]?.cons ?? [],
+        tradeoff: aiResponse.recommendations[i]?.tradeoff ?? '',
+      }));
     }
 
     return res.json({
@@ -33,10 +43,8 @@ async function handleChat(req, res) {
       message: aiResponse.message,
       preferences: aiResponse.preferences || {},
       reasoning: aiResponse.reasoning || '',
-      productReasons: aiResponse.productReasons || {},
-      tradeoffNote: aiResponse.tradeoffNote || '',
       whyNot: aiResponse.whyNot || '',
-      products,
+      products: enrichedProducts.length > 0 ? enrichedProducts : products,
       filters: aiResponse.filters,
       _fallback: aiResponse._fallback || false,
     });
@@ -44,12 +52,10 @@ async function handleChat(req, res) {
     console.error('[ChatController] Error:', err);
     return res.status(500).json({
       type: 'question',
-      message: "Something broke on my end — sorry! What were you looking for?",
+      message: "Something broke on my end. What were you looking for? I'll try again.",
       preferences: {},
       products: [],
       reasoning: '',
-      productReasons: {},
-      tradeoffNote: '',
       whyNot: '',
       _fallback: true,
     });
