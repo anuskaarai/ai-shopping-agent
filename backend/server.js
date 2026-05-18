@@ -37,8 +37,6 @@ const corsOptions = {
 
 // Apply CORS globally
 app.use(cors(corsOptions));
-// Fallback manual preflight handling just in case
-app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 
 // ── Routes ──────────────────────────────────────────────
