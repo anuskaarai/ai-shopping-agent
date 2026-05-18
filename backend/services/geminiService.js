@@ -1,13 +1,12 @@
 /**
  * geminiService.js
  *
- * This is the only file that talks to Gemini. Keeping it isolated
- * so if we ever switch models, the rest of the codebase doesn't care.
+ * Only file that talks to Gemini. Keeping it isolated
+ * so model changes don't ripple through the codebase.
  *
- * Two things worth noting:
- * - We retry once on failure. Most Gemini errors are transient.
- * - We force JSON output via responseMimeType. If it still breaks,
- *   parseGeminiResponse() catches it and returns a safe fallback.
+ * The system prompt returns richer JSON now — per-product
+ * reasons, match scores, tradeoff notes, and a preferences
+ * summary so the UI can show "here's what I understood."
  */
 
 const axios = require('axios');
@@ -17,19 +16,15 @@ const GEMINI_API_URL =
 
 const MAX_RETRIES = 1;
 
-// The system prompt is doing a lot of heavy lifting here.
-// Key insight: we tell Gemini to output structured JSON with a "type" field.
-// That lets the controller decide whether to show products or keep asking questions
-// without any AI involvement in that branching logic.
-const SYSTEM_PROMPT = `You are ShopSense — an AI shopping assistant that helps people find the right product through conversation.
+const SYSTEM_PROMPT = `You are ShopSense — an intelligent AI shopping assistant. Your job is to help users make confident purchase decisions through conversation.
 
-Your job is NOT to list every option. It's to ask the right questions and then recommend confidently.
-
-## How you should behave
-1. Ask 1–2 follow-up questions before recommending anything. You need: budget, use-case, and style/preference.
-2. When you have enough info, recommend specific products (max 4) with honest reasoning.
-3. Explain tradeoffs clearly — "this one costs more but the battery lasts twice as long" is more useful than specs.
-4. Never recommend products you don't know exist. The system will look them up using your filters.
+## Your behaviour
+1. Ask 1–2 targeted follow-up questions before recommending. You need: budget, use-case, and key preferences.
+2. When you have enough info, recommend max 4 products with honest, specific reasoning.
+3. Explain WHY each product fits this specific user — not generic descriptions.
+4. Call out tradeoffs explicitly: "For ₹2000 more you get ANC and 2x battery life."
+5. Mention why certain products were NOT recommended.
+6. Never pick products by name — extract filters and let the system find them.
 
 ## Product categories available
 Electronics: smartphones, laptops, headphones, earbuds, smartwatches, speakers, TVs, gaming peripherals
@@ -37,30 +32,48 @@ Footwear: sneakers, running shoes, formal shoes, boots
 Clothing: jeans, t-shirts, shirts, jackets, blazers
 Accessories: bags, backpacks
 
-## Output format — always return this exact JSON structure
+## Output format — always return this exact JSON, no markdown fences
+
 {
   "type": "question" | "recommendation" | "clarification",
-  "message": "what you say to the user",
+  "message": "Your conversational response to the user",
+  "preferences": {
+    "budget": "e.g. ₹5,000 or null",
+    "usage": "e.g. gym + daily commute or null",
+    "style": "e.g. wireless, casual or null",
+    "priority": "e.g. battery life, bass quality or null",
+    "brand": "e.g. Sony preferred or null"
+  },
   "filters": {
     "category": "electronics|footwear|clothing|accessories|null",
     "subcategory": "headphones|laptop|sneakers|etc|null",
-    "maxBudget": number or null,
-    "minBudget": number or null,
+    "maxBudget": number_or_null,
+    "minBudget": number_or_null,
     "style": "casual|premium|gaming|formal|budget|outdoor|sport|null",
-    "useCases": ["array of use cases"],
-    "brand": "brand name or null",
+    "useCases": ["array", "of", "use", "cases"],
+    "brand": "preferred_brand_or_null",
     "sortBy": "relevance|price_asc|price_desc|rating"
   },
   "productIds": [],
-  "reasoning": "why these products fit this specific person"
+  "productReasons": {
+    "PRODUCT_ID": {
+      "matchScore": 85,
+      "pros": ["Within your ₹5000 budget", "Great for gym use", "Sweat resistant"],
+      "cons": ["Average mic quality"]
+    }
+  },
+  "tradeoffNote": "Optional: 'For ₹2000 more, the Sony XM5 gives you ANC and 2x battery life.'",
+  "whyNot": "Optional: explain what was excluded and why, e.g. 'Skipped wired options since you prefer wireless.'",
+  "reasoning": "Overall summary of why these products fit this user's needs"
 }
 
-## A few rules
-- type "question" = you still need more info. productIds stays empty.
-- type "recommendation" = you have enough. Fill filters properly.
-- Prices are in Indian Rupees. "5k" = 5000, "1 lakh" = 100000.
-- Keep your "message" conversational, not robotic.
-- Return raw JSON only — no markdown fences around it.`;
+## Rules
+- type 'question': productIds and productReasons are empty. Ask only what you still need.
+- type 'recommendation': fill filters, productReasons with matchScore + pros/cons for each product.
+- preferences: always fill what you know so far, even during questions.
+- matchScore: 0–100, how well the product fits this specific user.
+- Prices in Indian Rupees. "5k" = 5000, "1 lakh" = 100000.
+- Return raw JSON only.`;
 
 async function callGemini(conversationHistory) {
   let lastError = null;
@@ -74,7 +87,7 @@ async function callGemini(conversationHistory) {
           contents: conversationHistory,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 1500,
             responseMimeType: 'application/json',
           },
         },
@@ -99,7 +112,6 @@ async function callGemini(conversationHistory) {
 
 function parseGeminiResponse(rawText) {
   try {
-    // Strip markdown fences if Gemini ignores our instructions
     const cleaned = rawText
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
@@ -108,45 +120,41 @@ function parseGeminiResponse(rawText) {
 
     const parsed = JSON.parse(cleaned);
 
-    if (!parsed.type || !parsed.message) {
-      throw new Error('Missing required fields');
-    }
+    if (!parsed.type || !parsed.message) throw new Error('Missing required fields');
 
-    // Fill in defaults for anything missing
     parsed.filters = {
-      category: null,
-      subcategory: null,
-      maxBudget: null,
-      minBudget: null,
-      style: null,
-      useCases: [],
-      brand: null,
-      sortBy: 'relevance',
+      category: null, subcategory: null, maxBudget: null,
+      minBudget: null, style: null, useCases: [], brand: null, sortBy: 'relevance',
       ...(parsed.filters || {}),
     };
 
+    parsed.preferences = parsed.preferences || {};
     parsed.productIds = parsed.productIds || [];
+    parsed.productReasons = parsed.productReasons || {};
+    parsed.tradeoffNote = parsed.tradeoffNote || '';
+    parsed.whyNot = parsed.whyNot || '';
     parsed.reasoning = parsed.reasoning || '';
 
     return parsed;
   } catch (err) {
-    console.error('[Gemini] Parse failed:', err.message, '| Raw snippet:', rawText?.slice(0, 150));
+    console.error('[Gemini] Parse failed:', err.message, '| Snippet:', rawText?.slice(0, 150));
     return getFallbackResponse();
   }
 }
 
-// If Gemini completely dies, we don't crash the conversation.
-// We just ask the user to repeat themselves — most people won't even notice.
 function getFallbackResponse() {
   return {
     type: 'question',
-    message:
-      "Sorry, I lost my train of thought there! Could you tell me again what you're looking for and roughly what budget you have in mind?",
+    message: "Sorry, I lost my train of thought! Could you tell me again what you're looking for and roughly what budget you have in mind?",
+    preferences: {},
     filters: {
       category: null, subcategory: null, maxBudget: null,
       minBudget: null, style: null, useCases: [], brand: null, sortBy: 'relevance',
     },
     productIds: [],
+    productReasons: {},
+    tradeoffNote: '',
+    whyNot: '',
     reasoning: '',
     _fallback: true,
   };

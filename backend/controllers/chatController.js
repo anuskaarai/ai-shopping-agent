@@ -1,14 +1,8 @@
 /**
  * chatController.js
  *
- * Glue between the AI layer and the product layer.
- * The main design decision here: Gemini returns intent + filters,
- * then deterministic code does the actual product lookup.
- * Gemini never sees the product list directly.
- *
- * Why? Because if Gemini picks products by name it might hallucinate
- * ones that don't exist. This way the worst it can do is return
- * bad filters — and the fallback handles that gracefully.
+ * Orchestrates: validate → call Gemini → filter products → return.
+ * New fields pass through: preferences, productReasons, tradeoffNote, whyNot.
  */
 
 const { callGemini } = require('../services/geminiService');
@@ -18,19 +12,16 @@ async function handleChat(req, res) {
   try {
     const { message, history = [] } = req.body;
 
-    // Basic validation — nothing clever, just sanity checks
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'message is required and must be a string' });
     }
-
     const trimmed = message.trim();
-    if (trimmed.length === 0) return res.status(400).json({ error: 'message cannot be empty' });
+    if (!trimmed.length) return res.status(400).json({ error: 'message cannot be empty' });
     if (trimmed.length > 1000) return res.status(400).json({ error: 'message too long (max 1000 chars)' });
 
     const conversationHistory = buildHistory(history, trimmed);
     const aiResponse = await callGemini(conversationHistory);
 
-    // Only filter products if Gemini is confident enough to recommend
     let products = [];
     if (aiResponse.type === 'recommendation') {
       const filters = sanitiseFilters(aiResponse.filters);
@@ -40,18 +31,26 @@ async function handleChat(req, res) {
     return res.json({
       type: aiResponse.type,
       message: aiResponse.message,
+      preferences: aiResponse.preferences || {},
       reasoning: aiResponse.reasoning || '',
+      productReasons: aiResponse.productReasons || {},
+      tradeoffNote: aiResponse.tradeoffNote || '',
+      whyNot: aiResponse.whyNot || '',
       products,
       filters: aiResponse.filters,
       _fallback: aiResponse._fallback || false,
     });
   } catch (err) {
-    console.error('[ChatController] Unexpected error:', err);
+    console.error('[ChatController] Error:', err);
     return res.status(500).json({
       type: 'question',
-      message: "Something broke on my end — sorry! What were you looking for? I'll try again.",
+      message: "Something broke on my end — sorry! What were you looking for?",
+      preferences: {},
       products: [],
       reasoning: '',
+      productReasons: {},
+      tradeoffNote: '',
+      whyNot: '',
       _fallback: true,
     });
   }
@@ -61,11 +60,7 @@ function buildHistory(history, newMessage) {
   const safe = [];
   if (Array.isArray(history)) {
     for (const turn of history) {
-      if (
-        turn &&
-        (turn.role === 'user' || turn.role === 'model') &&
-        typeof turn.parts?.[0]?.text === 'string'
-      ) {
+      if (turn && (turn.role === 'user' || turn.role === 'model') && typeof turn.parts?.[0]?.text === 'string') {
         safe.push(turn);
       }
     }
@@ -83,7 +78,7 @@ function sanitiseFilters(filters = {}) {
     style:       typeof filters.style === 'string' && filters.style !== 'null' ? filters.style : undefined,
     useCases:    Array.isArray(filters.useCases) ? filters.useCases : [],
     brand:       typeof filters.brand === 'string' && filters.brand !== 'null' ? filters.brand : undefined,
-    sortBy:      ['relevance', 'price_asc', 'price_desc', 'rating'].includes(filters.sortBy) ? filters.sortBy : 'relevance',
+    sortBy:      ['relevance','price_asc','price_desc','rating'].includes(filters.sortBy) ? filters.sortBy : 'relevance',
   };
 }
 
