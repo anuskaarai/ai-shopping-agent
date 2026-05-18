@@ -1,38 +1,41 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
-// Ensure the db directory exists
 const dbDir = path.resolve(__dirname, 'data');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const dbPath = path.join(dbDir, 'shopsense.db');
+const dbPath = path.join(dbDir, 'users.json');
 
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('[DB] Error opening database:', err.message);
-  } else {
-    console.log('[DB] Connected to SQLite database.');
-    
-    // Initialize the users table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) {
-        console.error('[DB] Error creating users table:', err.message);
-      } else {
-        console.log('[DB] Users table is ready.');
-      }
-    });
+// Initialize if it doesn't exist
+if (!fs.existsSync(dbPath)) {
+  fs.writeFileSync(dbPath, JSON.stringify([]));
+}
+
+function readUsers() {
+  try {
+    const data = fs.readFileSync(dbPath, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    return [];
   }
-});
+}
 
-module.exports = db;
+function writeUsers(users) {
+  fs.writeFileSync(dbPath, JSON.stringify(users, null, 2));
+}
+
+module.exports = {
+  get: (email) => {
+    const users = readUsers();
+    return users.find(u => u.email === email) || null;
+  },
+  insert: (user) => {
+    const users = readUsers();
+    const newUser = { id: Date.now(), ...user };
+    users.push(newUser);
+    writeUsers(users);
+    return newUser;
+  }
+};

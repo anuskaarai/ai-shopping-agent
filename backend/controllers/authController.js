@@ -11,32 +11,31 @@ exports.register = (req, res) => {
     return res.status(400).json({ error: 'All fields are required' });
   }
 
-  // Check if user exists
-  db.get('SELECT id FROM users WHERE email = ?', [email], (err, row) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (row) return res.status(400).json({ error: 'Email is already registered' });
+  try {
+    // Check if user exists
+    const existingUser = db.get(email);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email is already registered' });
+    }
 
     // Hash password
     const salt = bcrypt.genSaltSync(10);
     const hashedPassword = bcrypt.hashSync(password, salt);
 
     // Insert user
-    db.run(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [name, email, hashedPassword],
-      function (err) {
-        if (err) return res.status(500).json({ error: 'Failed to create user' });
-        
-        const token = jwt.sign({ id: this.lastID, email, name }, JWT_SECRET, { expiresIn: '7d' });
-        
-        res.json({
-          message: 'User registered successfully',
-          token,
-          user: { name, email, avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${email}&backgroundColor=f5efe6` }
-        });
-      }
-    );
-  });
+    const newUser = db.insert({ name, email, password: hashedPassword });
+    
+    const token = jwt.sign({ id: newUser.id, email, name }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({
+      message: 'User registered successfully',
+      token,
+      user: { name, email, avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${email}&backgroundColor=f5efe6` }
+    });
+  } catch (err) {
+    console.error('[Auth] Register Error:', err);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
 };
 
 exports.login = (req, res) => {
@@ -46,13 +45,17 @@ exports.login = (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) return res.status(500).json({ error: 'Database error' });
-    if (!user) return res.status(400).json({ error: 'Invalid email or password' });
+  try {
+    const user = db.get(email);
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
 
     // Compare password
     const isMatch = bcrypt.compareSync(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid email or password' });
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Invalid email or password' });
+    }
 
     const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -61,5 +64,8 @@ exports.login = (req, res) => {
       token,
       user: { name: user.name, email: user.email, avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${user.email}&backgroundColor=f5efe6` }
     });
-  });
+  } catch (err) {
+    console.error('[Auth] Login Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 };
