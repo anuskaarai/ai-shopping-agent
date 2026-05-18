@@ -1,17 +1,12 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import axios from 'axios';
 
-// In dev: VITE_API_URL is empty → Vite proxy forwards /api to localhost:5000
-// In prod: VITE_API_URL is set to the full Render backend URL
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const WELCOME = "Hi! I'm **ShopSense** 🛍️ — your AI shopping assistant.\n\nTell me what you're looking for and I'll help you find the perfect product. I'll ask a couple of smart questions before recommending anything.\n\nWhat are you shopping for today?";
 
-export function useChat() {
-  const [messages, setMessages] = useState([
-    { id: 'welcome', role: 'assistant', text: WELCOME, type: 'greeting', timestamp: new Date() },
-  ]);
-
+export function useChat(sessionId) {
+  const [messages, setMessages] = useState([]);
   const [products, setProducts] = useState([]);
   const [reasoning, setReasoning] = useState('');
   const [preferences, setPreferences] = useState({});
@@ -20,6 +15,42 @@ export function useChat() {
   const [error, setError] = useState(null);
 
   const geminiHistory = useRef([]);
+
+  // Load session from localStorage on mount or sessionId change
+  useEffect(() => {
+    const saved = localStorage.getItem(`chat_${sessionId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setMessages(parsed.messages || []);
+        setProducts(parsed.products || []);
+        setReasoning(parsed.reasoning || '');
+        setPreferences(parsed.preferences || {});
+        setWhyNot(parsed.whyNot || '');
+        geminiHistory.current = parsed.geminiHistory || [];
+      } catch (e) {
+        initNewChat();
+      }
+    } else {
+      initNewChat();
+    }
+  }, [sessionId]);
+
+  const initNewChat = useCallback(() => {
+    geminiHistory.current = [];
+    setProducts([]); setReasoning(''); setPreferences({});
+    setWhyNot(''); setError(null);
+    setMessages([{ id: 'welcome', role: 'assistant', text: WELCOME, type: 'greeting', timestamp: new Date() }]);
+  }, []);
+
+  // Save to localStorage whenever important state changes
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(`chat_${sessionId}`, JSON.stringify({
+        messages, products, reasoning, preferences, whyNot, geminiHistory: geminiHistory.current
+      }));
+    }
+  }, [messages, products, reasoning, preferences, whyNot, sessionId]);
 
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || isLoading) return;
@@ -85,15 +116,8 @@ export function useChat() {
     }
   }, [isLoading]);
 
-  const resetChat = useCallback(() => {
-    geminiHistory.current = [];
-    setProducts([]); setReasoning(''); setPreferences({});
-    setWhyNot(''); setError(null);
-    setMessages([{ id: 'welcome', role: 'assistant', text: WELCOME, type: 'greeting', timestamp: new Date() }]);
-  }, []);
-
   return {
     messages, products, reasoning, preferences,
-    whyNot, isLoading, error, sendMessage, resetChat,
+    whyNot, isLoading, error, sendMessage, resetChat: initNewChat,
   };
 }

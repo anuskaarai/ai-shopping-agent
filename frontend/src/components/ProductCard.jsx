@@ -124,9 +124,15 @@ export default function ProductCard({ product, delay = 0 }) {
             {formattedPrice}
           </div>
         </div>
-        <button className="btn-glow" style={{ padding: '0.4rem 0.875rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+        <a
+          href={`https://www.amazon.in/s?k=${encodeURIComponent(name)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-glow"
+          style={{ textDecoration: 'none', padding: '0.4rem 0.875rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+        >
           <ShoppingCart size={12} /> Buy Now
-        </button>
+        </a>
       </div>
     </div>
   );

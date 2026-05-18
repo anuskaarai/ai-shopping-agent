@@ -39,8 +39,12 @@ function filterProducts(criteria = {}) {
 
   let results = products.filter((p) => {
     if (!p.inStock) return false;
-    if (category && p.category !== category) return false;
-    if (subcategory && p.subcategory !== subcategory) return false;
+    if (category && p.category.toLowerCase() !== category.toLowerCase()) return false;
+    if (subcategory) {
+      const dbSub = p.subcategory.toLowerCase();
+      const qSub = subcategory.toLowerCase().replace(/s$/, ''); // Remove trailing 's'
+      if (!dbSub.includes(qSub)) return false;
+    }
     if (maxBudget !== undefined && p.price > maxBudget) return false;
     if (p.price < minBudget) return false;
 
