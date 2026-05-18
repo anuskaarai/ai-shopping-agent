@@ -1,6 +1,6 @@
-import { MessageSquare, PlusCircle, LogOut } from 'lucide-react';
+import { MessageSquare, PlusCircle, LogOut, Trash2 } from 'lucide-react';
 
-export default function Sidebar({ user, sessions, currentSessionId, onSelectSession, onNewSession, onLogout }) {
+export default function Sidebar({ user, sessions, currentSessionId, onSelectSession, onNewSession, onClearHistory, onLogout }) {
   return (
     <div style={{
       width: '260px',
@@ -28,8 +28,19 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
         </button>
       </div>
 
-      <div style={{ padding: '0 1rem 0.5rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-        Previous Searches
+      <div style={{ padding: '0 1rem 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+          Previous Searches
+        </div>
+        {sessions.length > 0 && (
+          <button 
+            onClick={onClearHistory}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+            title="Clear all history"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 0.5rem' }}>

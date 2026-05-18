@@ -65,6 +65,19 @@ export default function App() {
     localStorage.setItem('current_session_id', id);
   };
 
+  const handleClearHistory = () => {
+    localStorage.removeItem('chat_sessions');
+    setSessions([]);
+    // Remove all individual chat histories
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('chat_')) {
+        localStorage.removeItem(key);
+      }
+    }
+    handleNewSession();
+  };
+
   if (!user) {
     return <Login onLogin={handleLogin} />;
   }
@@ -81,6 +94,7 @@ export default function App() {
           currentSessionId={currentSessionId}
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
+          onClearHistory={handleClearHistory}
           onLogout={handleLogout}
         />
         <main style={{
