@@ -5,8 +5,13 @@ import { jwtDecode } from 'jwt-decode';
 
 export default function Login({ onLogin }) {
   const [showError, setShowError] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const handleSuccess = (credentialResponse) => {
     try {
@@ -27,16 +32,35 @@ export default function Login({ onLogin }) {
     setShowError(true);
   };
 
-  const handleEmailLogin = (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
+    setAuthError('');
     if (!email || !password) return;
+    if (isRegistering && !name) return;
     
-    // Create a mock user based on the email provided
-    onLogin({
-      name: email.split('@')[0],
-      email: email,
-      avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${email}&backgroundColor=f5efe6`
-    });
+    const endpoint = isRegistering ? '/auth/register' : '/auth/login';
+    const payload = isRegistering ? { name, email, password } : { email, password };
+
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      // Store JWT if we want to make authenticated requests later
+      localStorage.setItem('token', data.token);
+      
+      onLogin(data.user);
+    } catch (err) {
+      setAuthError(err.message);
+    }
   };
 
   return (
@@ -46,9 +70,25 @@ export default function Login({ onLogin }) {
           <ShoppingBag size={28} color="#fff8f0" />
         </div>
         <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.75rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Welcome to ShopSense</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>Your personal AI shopping assistant. Sign in to save your chat history and preferences.</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Your personal AI shopping assistant.</p>
         
-        <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        {authError && (
+          <div style={{ padding: '0.75rem', background: '#fef2f2', color: '#991b1b', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', border: '1px solid #fecaca' }}>
+            {authError}
+          </div>
+        )}
+
+        <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+          {isRegistering && (
+            <input 
+              type="text" 
+              placeholder="Full Name" 
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', outline: 'none', fontSize: '0.9rem' }}
+            />
+          )}
           <input 
             type="email" 
             placeholder="Email address" 
@@ -69,9 +109,19 @@ export default function Login({ onLogin }) {
             type="submit" 
             style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: '#111827', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', marginTop: '0.25rem' }}
           >
-            Continue with Email
+            {isRegistering ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+          {isRegistering ? 'Already have an account? ' : "Don't have an account? "}
+          <span 
+            onClick={() => { setIsRegistering(!isRegistering); setAuthError(''); }}
+            style={{ color: '#8B5E3C', cursor: 'pointer', fontWeight: 600 }}
+          >
+            {isRegistering ? 'Log in' : 'Sign up'}
+          </span>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
           <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }}></div>
