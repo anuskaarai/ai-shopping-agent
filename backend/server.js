@@ -8,7 +8,6 @@ const express = require('express');
 const cors = require('cors');
 
 const chatRoutes = require('./routes/chat');
-const productRoutes = require('./routes/products');
 const authRoutes = require('./routes/auth');
 
 const app = express();
@@ -43,7 +42,6 @@ app.use(express.json({ limit: '10kb' }));
 
 // ── Routes ──────────────────────────────────────────────
 app.use('/api/chat', chatRoutes);
-app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
 
 // ── Health check ────────────────────────────────────────
