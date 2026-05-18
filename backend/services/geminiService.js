@@ -1,74 +1,76 @@
-/**
- * geminiService.js
- *
- * Only file that talks to Gemini.
- * The schema is intentionally kept simple — fewer nested objects
- * means Gemini produces valid JSON more reliably.
- */
-
 const axios = require('axios');
 
-const GEMINI_API_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
-
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
 const MAX_RETRIES = 1;
 
-const SYSTEM_PROMPT = `You are ShopSense — an intelligent AI shopping assistant. Help users find the right product through conversation.
+/**
+ * STEP 1: INTENT EXTRACTION
+ * Asks Gemini to understand what the user wants. 
+ * If it's a general chat/greeting, it just replies.
+ * If it's a product search, it extracts the deterministic fields for the backend.
+ */
+async function extractIntent(conversationHistory) {
+  const prompt = `You are the Intent Extraction layer of an AI shopping assistant.
+Analyze the conversation and determine what the user wants.
 
-## Your behaviour
-1. Ask 1-2 targeted follow-up questions before recommending. You need: budget, use-case, and preferences.
-2. When you have enough info, recommend max 4 products with honest, specific reasoning.
-3. Explain tradeoffs: "For ₹2000 more you get ANC and 2x battery life."
-4. Mention briefly why certain options were skipped.
-5. Never pick products by name — extract filters and let the system find them.
+IMPORTANT PRINCIPLE: DO NOT invent products. You are only extracting intent so the backend can search the database.
 
-## Product categories available
-Electronics: smartphones, laptops, headphones, earbuds, smartwatches, speakers, TVs, gaming peripherals
-Footwear: sneakers, running shoes, formal shoes, boots
-Clothing: jeans, t-shirts, shirts, jackets, blazers
-Accessories: bags, backpacks
-
-## IMPORTANT: Return ONLY this JSON structure, no markdown, no extra text
-
+Return strictly JSON matching this structure:
 {
-  "type": "question",
-  "message": "your conversational reply",
-  "preferences": {
-    "budget": "e.g. under ₹5,000 or null",
-    "usage": "e.g. gym and travel or null",
-    "style": "e.g. wireless, casual or null",
-    "priority": "e.g. battery life or null"
-  },
-  "filters": {
-    "category": "electronics or footwear or clothing or accessories or null",
-    "subcategory": "headphones or laptop or sneakers etc or null",
-    "maxBudget": null,
-    "minBudget": null,
-    "style": "casual or premium or gaming or formal or budget or outdoor or sport or null",
-    "useCases": [],
-    "brand": null,
-    "sortBy": "relevance"
-  },
-  "recommendations": [
-    {
-      "matchScore": 88,
-      "pros": ["Within your budget", "Great for gym use"],
-      "cons": ["Average mic quality"],
-      "tradeoff": "optional one-line tradeoff for this product"
-    }
-  ],
-  "whyNot": "optional: briefly explain what was excluded and why",
-  "reasoning": "overall summary of why these products fit this user"
+  "action": "chat" | "search",
+  "message": "If action is 'chat', put your conversational reply here. If 'search', leave empty.",
+  "searchQuery": "If action is 'search', put the main product keyword here (e.g. 'laptop', 'washing machine', 'shoes').",
+  "maxBudget": 50000,
+  "minBudget": null,
+  "category": "broader category",
+  "preferences": ["list", "of", "extracted", "features"]
+}`;
+
+  return await makeGeminiCall(conversationHistory, prompt);
 }
 
-## Rules
-- type "question": recommendations array is empty, ask only what you need
-- type "recommendation": fill filters fully, add one recommendations entry per product (in order)
-- matchScore 0-100: how well the product fits this specific user
-- Prices in Indian Rupees. "5k"=5000, "1 lakh"=100000
-- Return raw JSON only, no code fences`;
+/**
+ * STEP 4: AI REASONING
+ * Takes the REAL products retrieved by the backend and asks Gemini to explain them,
+ * compare them, and ask follow-up questions.
+ */
+async function generateReasoning(intent, filteredProducts, conversationHistory) {
+  const productData = JSON.stringify(filteredProducts.map(p => ({
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    rating: p.rating,
+    features: p.features,
+    description: p.description
+  })));
 
-async function callGemini(conversationHistory) {
+  const prompt = `You are the Reasoning layer of ShopSense, an AI shopping assistant.
+The backend has retrieved the following REAL products based on the user's query:
+${productData}
+
+Your job is to explain these recommendations to the user, compare them intelligently, and explicitly state tradeoffs (e.g. better quality vs higher price).
+If the product list is empty, apologize and ask them to broaden their search.
+If you need more details to narrow it down, ask smart contextual follow-up questions.
+
+Return strictly JSON matching this structure:
+{
+  "type": "recommendation" | "question",
+  "message": "Your conversational response. Explain why these are good, compare them, and ask follow-ups.",
+  "recommendations": [
+    {
+      "id": "must exactly match the product id provided",
+      "pros": ["pro 1", "pro 2"],
+      "cons": ["con 1"],
+      "tradeoff": "Explicit tradeoff reasoning",
+      "matchScore": 95
+    }
+  ]
+}`;
+
+  return await makeGeminiCall(conversationHistory, prompt);
+}
+
+async function makeGeminiCall(history, systemInstruction) {
   let lastError = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -76,76 +78,33 @@ async function callGemini(conversationHistory) {
       const response = await axios.post(
         `${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`,
         {
-          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: conversationHistory,
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: history,
           generationConfig: {
-            temperature: 0.65,
-            maxOutputTokens: 2048,
+            temperature: 0.3, // Lower temperature for more deterministic JSON
             responseMimeType: 'application/json',
           },
         },
-        { timeout: 20000 }
+        { timeout: 15000 }
       );
 
       const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) throw new Error('Empty response from Gemini');
 
-      return parseGeminiResponse(rawText);
+      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+      return JSON.parse(cleaned);
+
     } catch (err) {
       lastError = err;
       console.error(`[Gemini] Attempt ${attempt + 1} failed:`, err?.response?.data || err.message);
-      if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1200));
+      if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
-  console.error('[Gemini] All attempts failed:', lastError?.message);
-  return getFallbackResponse();
+  throw new Error(`Gemini API failed: ${lastError?.message}`);
 }
 
-function parseGeminiResponse(rawText) {
-  try {
-    const cleaned = rawText
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/```\s*$/i, '')
-      .trim();
-
-    const parsed = JSON.parse(cleaned);
-
-    if (!parsed.type || !parsed.message) throw new Error('Missing type or message');
-
-    // Defaults for all fields
-    parsed.filters = {
-      category: null, subcategory: null, maxBudget: null,
-      minBudget: null, style: null, useCases: [], brand: null, sortBy: 'relevance',
-      ...(parsed.filters || {}),
-    };
-    parsed.preferences = parsed.preferences || {};
-    parsed.recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
-    parsed.whyNot = parsed.whyNot || '';
-    parsed.reasoning = parsed.reasoning || '';
-
-    return parsed;
-  } catch (err) {
-    console.error('[Gemini] Parse failed:', err.message, '| Raw snippet:', rawText?.slice(0, 200));
-    return getFallbackResponse();
-  }
-}
-
-function getFallbackResponse() {
-  return {
-    type: 'question',
-    message: "I had trouble processing that — could you tell me what you're looking for and your budget? I'll find the best options for you.",
-    preferences: {},
-    filters: {
-      category: null, subcategory: null, maxBudget: null,
-      minBudget: null, style: null, useCases: [], brand: null, sortBy: 'relevance',
-    },
-    recommendations: [],
-    whyNot: '',
-    reasoning: '',
-    _fallback: true,
-  };
-}
-
-module.exports = { callGemini };
+module.exports = {
+  extractIntent,
+  generateReasoning
+};

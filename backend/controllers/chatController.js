@@ -1,10 +1,5 @@
-/**
- * chatController.js
- * Maps the flat recommendations[] from Gemini onto the filtered products by index.
- */
-
-const { callGemini } = require('../services/geminiService');
-const { filterProducts, parseBudget } = require('../services/productFilterService');
+const { extractIntent, generateReasoning } = require('../services/geminiService');
+const { fetchProductsFromAPI, deterministicFilter } = require('../services/retrievalService');
 
 async function handleChat(req, res) {
   try {
@@ -15,81 +10,66 @@ async function handleChat(req, res) {
     }
     const trimmed = message.trim();
     if (!trimmed.length) return res.status(400).json({ error: 'message cannot be empty' });
-    if (trimmed.length > 1000) return res.status(400).json({ error: 'message too long (max 1000 chars)' });
 
     const conversationHistory = buildHistory(history, trimmed);
-    const aiResponse = await callGemini(conversationHistory);
 
-    let products = [];
-    // Map recommendations[] onto products by position
-    let enrichedProducts = [];
+    // STEP 1: INTENT EXTRACTION
+    console.log('[ChatController] Extracting intent...');
+    const intent = await extractIntent(conversationHistory);
+    console.log('[ChatController] Intent extracted:', intent);
 
-    if (aiResponse.type === 'recommendation') {
-      const filters = sanitiseFilters(aiResponse.filters);
-      products = filterProducts({ ...filters });
-
-      // If no products found in the static JSON, dynamically generate realistic mock products
-      // This allows the AI to handle literally ANY query ("unlimited catalog") for the hackathon!
-      if (products.length === 0 && filters.subcategory) {
-        const sub = filters.subcategory;
-        const basePrice = filters.maxBudget ? (filters.maxBudget * 0.85) : 2500;
-        const capFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-        const nameType = capFirst(sub);
-
-        products = [
-          {
-            id: `dyn_${Date.now()}_1`,
-            name: `${filters.brand ? capFirst(filters.brand) : 'Premium'} ${nameType}`,
-            category: filters.category || 'general',
-            subcategory: sub,
-            price: Math.floor(basePrice),
-            rating: 4.7,
-            brand: filters.brand || 'Premium Brand',
-            imageUrl: sub,
-          },
-          {
-            id: `dyn_${Date.now()}_2`,
-            name: `${filters.brand ? capFirst(filters.brand) : 'Essential'} ${nameType}`,
-            category: filters.category || 'general',
-            subcategory: sub,
-            price: Math.floor(basePrice * 0.65),
-            rating: 4.2,
-            brand: filters.brand || 'Value Brand',
-            imageUrl: sub,
-          },
-          {
-            id: `dyn_${Date.now()}_3`,
-            name: `${filters.brand ? capFirst(filters.brand) : 'Pro'} ${nameType} Elite`,
-            category: filters.category || 'general',
-            subcategory: sub,
-            price: Math.floor(basePrice * 1.3),
-            rating: 4.9,
-            brand: filters.brand || 'Pro Series',
-            imageUrl: sub,
-          }
-        ];
-      }
-
-      // Attach Gemini's per-product reasons by index order
-      enrichedProducts = products.map((p, i) => ({
-        ...p,
-        matchScore: aiResponse.recommendations[i]?.matchScore ?? null,
-        pros: aiResponse.recommendations[i]?.pros ?? [],
-        cons: aiResponse.recommendations[i]?.cons ?? [],
-        tradeoff: aiResponse.recommendations[i]?.tradeoff ?? '',
-      }));
+    // If it's just a general chat/greeting or follow-up question
+    if (intent.action === 'chat' || !intent.searchQuery) {
+      return res.json({
+        type: 'question',
+        message: intent.message || "How can I help you shop today?",
+        preferences: intent.preferences || {},
+        products: [],
+        filters: {}
+      });
     }
 
-    return res.json({
-      type: aiResponse.type,
-      message: aiResponse.message,
-      preferences: aiResponse.preferences || {},
-      reasoning: aiResponse.reasoning || '',
-      whyNot: aiResponse.whyNot || '',
-      products: enrichedProducts.length > 0 ? enrichedProducts : products,
-      filters: aiResponse.filters,
-      _fallback: aiResponse._fallback || false,
+    // STEP 2 & 3: DYNAMIC RETRIEVAL & DETERMINISTIC FILTERING
+    console.log(`[ChatController] Searching products for: ${intent.searchQuery}`);
+    const rawProducts = await fetchProductsFromAPI(intent.searchQuery);
+    const filteredProducts = deterministicFilter(rawProducts, intent);
+
+    if (filteredProducts.length === 0) {
+      return res.json({
+        type: 'question',
+        message: `I looked everywhere, but I couldn't find any "${intent.searchQuery}" that matched your exact criteria. Could you broaden your search or adjust your budget?`,
+        preferences: intent.preferences || {},
+        products: [],
+        filters: {}
+      });
+    }
+
+    // STEP 4: AI REASONING
+    console.log(`[ChatController] Generating reasoning for ${filteredProducts.length} products...`);
+    const aiReasoning = await generateReasoning(intent, filteredProducts, conversationHistory);
+    
+    // Attach Gemini's per-product reasons by matching the IDs
+    const enrichedProducts = filteredProducts.map((p) => {
+      const rec = aiReasoning.recommendations?.find(r => r.id === p.id);
+      return {
+        ...p,
+        matchScore: rec?.matchScore ?? 85,
+        pros: rec?.pros ?? [],
+        cons: rec?.cons ?? [],
+        tradeoff: rec?.tradeoff ?? '',
+      };
     });
+
+    return res.json({
+      type: aiReasoning.type || 'recommendation',
+      message: aiReasoning.message,
+      preferences: intent.preferences || {},
+      reasoning: '', // we put it in message now
+      whyNot: '', 
+      products: enrichedProducts,
+      filters: { category: intent.category, maxBudget: intent.maxBudget }
+    });
+
   } catch (err) {
     console.error('[ChatController] Error:', err);
     return res.status(500).json({
@@ -115,19 +95,6 @@ function buildHistory(history, newMessage) {
   }
   safe.push({ role: 'user', parts: [{ text: newMessage }] });
   return safe;
-}
-
-function sanitiseFilters(filters = {}) {
-  return {
-    category:    typeof filters.category === 'string' && filters.category !== 'null' ? filters.category : undefined,
-    subcategory: typeof filters.subcategory === 'string' && filters.subcategory !== 'null' ? filters.subcategory : undefined,
-    maxBudget:   parseBudget(filters.maxBudget),
-    minBudget:   parseBudget(filters.minBudget),
-    style:       typeof filters.style === 'string' && filters.style !== 'null' ? filters.style : undefined,
-    useCases:    Array.isArray(filters.useCases) ? filters.useCases : [],
-    brand:       typeof filters.brand === 'string' && filters.brand !== 'null' ? filters.brand : undefined,
-    sortBy:      ['relevance','price_asc','price_desc','rating'].includes(filters.sortBy) ? filters.sortBy : 'relevance',
-  };
 }
 
 module.exports = { handleChat };
