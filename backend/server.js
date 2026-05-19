@@ -18,6 +18,8 @@ const PORT = process.env.PORT || 5000;
 // Allowed origins — localhost for dev, Vercel URL for production
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
   'https://ai-shopping-agent-alpha.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
