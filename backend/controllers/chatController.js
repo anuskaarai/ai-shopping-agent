@@ -35,6 +35,51 @@ async function handleChat(req, res) {
     const filteredProducts = deterministicFilter(rawProducts, intent);
 
     if (filteredProducts.length === 0) {
+      // 🚀 FALLBACK: Use Google Custom Search if DummyJSON fails
+      try {
+        const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
+        const key = process.env.GOOGLE_API_KEY;
+        if (cx && key) {
+          console.log(`[ChatController] No internal products found. Triggering Google Web Search for: ${intent.searchQuery}`);
+          const axios = require('axios');
+          const budget = intent.maxBudget || 10000;
+          const query = `${intent.searchQuery} under ₹${budget} buy site:amazon.in OR site:flipkart.com OR site:croma.com`;
+          
+          const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
+            params: { key, cx, q: query, num: 5 }
+          });
+
+          if (response.data.items && response.data.items.length > 0) {
+            const rawResults = response.data.items.map(item => ({
+              title: item.title, link: item.link, snippet: item.snippet
+            }));
+
+            const prompt = `You are Nexora, a shopping assistant. The user wants ${intent.searchQuery} under ₹${budget}.
+Here are live search results: ${JSON.stringify(rawResults)}
+Summarize them, rank them best to worst, and explain why each fits the budget. 
+Be concise. Format as a numbered list and make sure to include the actual Markdown links (e.g. [Product Name](link)) so the user can click them!`;
+
+            const geminiRes = await axios.post(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+              { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } }
+            );
+
+            const explanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (explanation) {
+              return res.json({
+                type: 'recommendation',
+                message: `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${explanation}`,
+                preferences: intent.preferences || {},
+                products: [],
+                filters: {}
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ChatController] Google Search Fallback failed:', err.message);
+      }
+
       return res.json({
         type: 'question',
         message: `I looked everywhere, but I couldn't find any "${intent.searchQuery}" that matched your exact criteria. Could you broaden your search or adjust your budget?`,
