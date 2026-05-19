@@ -46,38 +46,65 @@ async function handleChat(req, res) {
         console.log(`[ChatController] SERP_API_KEY present: ${!!apiKey}`);
 
         if (apiKey) {
-          const query = `${intent.searchQuery} under ₹${budget} buy`;
-          console.log(`[ChatController] SerpApi query: "${query}"`);
+          const query = `${intent.searchQuery} under ₹${budget}`;
+          console.log(`[ChatController] SerpApi Shopping query: "${query}"`);
 
           const response = await axios.get('https://serpapi.com/search.json', {
-            params: { api_key: apiKey, q: query, location: 'India', hl: 'en', gl: 'in', num: 5 },
+            params: {
+              api_key: apiKey,
+              engine: 'google_shopping',
+              q: query,
+              location: 'India',
+              hl: 'en',
+              gl: 'in',
+              num: 10
+            },
             timeout: 10000
           });
 
-          const items = Array.isArray(response.data.organic_results) ? response.data.organic_results : [];
-          console.log(`[ChatController] SerpApi returned ${items.length} items`);
+          // Use shopping_results for actual product listings
+          const allItems = Array.isArray(response.data.shopping_results)
+            ? response.data.shopping_results
+            : [];
 
-          if (items.length > 0) {
-            serpProducts = items.slice(0, 5).map((item, index) => ({
+          console.log(`[ChatController] SerpApi shopping returned ${allItems.length} items`);
+
+          // Filter to trusted Indian retailers only
+          const trustedDomains = ['amazon.in', 'flipkart.com', 'croma.com', 'reliance', 'tatacliq', 'myntra', 'meesho', 'snapdeal'];
+          const items = allItems.filter(item => {
+            const link = (item.link || item.product_link || '').toLowerCase();
+            return trustedDomains.some(d => link.includes(d));
+          }).slice(0, 5);
+
+          // Fallback: use all results if no trusted ones found
+          const finalItems = items.length > 0 ? items : allItems.slice(0, 5);
+
+          console.log(`[ChatController] Filtered to ${finalItems.length} trusted items`);
+
+          if (finalItems.length > 0) {
+            serpProducts = finalItems.map((item, index) => ({
               id: `serp_${index}`,
               name: item.title,
-              price: budget,
-              rating: 4.5,
-              brand: intent.searchQuery,
+              price: item.extracted_price || item.price || budget,
+              rating: item.rating || 4.0,
+              brand: item.source || intent.searchQuery,
               style: 'premium',
-              features: [item.snippet ? item.snippet.substring(0, 80) : 'Live result'],
+              features: [item.snippet || `Available on ${item.source || 'retailer'}`],
               imageUrl: item.thumbnail || null,
-              description: item.snippet || '',
-              link: item.link
+              description: item.snippet || item.title,
+              link: item.link || item.product_link || '#'
             }));
 
-            // Template message — NO Gemini API call
-            const topLinks = items.slice(0, 3)
-              .map((r, i) => `${i + 1}. [${r.title}](${r.link})`)
+            const topLinks = finalItems.slice(0, 3)
+              .map((r, i) => {
+                const price = r.extracted_price ? `₹${r.extracted_price}` : '';
+                const store = r.source || '';
+                return `${i + 1}. [${r.title}](${r.link || r.product_link}) ${price ? `— ${price}` : ''} ${store ? `on ${store}` : ''}`;
+              })
               .join('\n');
-            serpMessage = `Here are the top live results I found for **${intent.searchQuery}** under ₹${budget.toLocaleString('en-IN')}:\n\n${topLinks}\n\nClick any card below to view the product. Want me to narrow this down further?`;
+            serpMessage = `Here are the top live deals I found for **${intent.searchQuery}** under ₹${budget.toLocaleString('en-IN')}:\n\n${topLinks}\n\nClick any card below to view and buy. Want me to filter by brand or features?`;
           } else {
-            serpMessage = `I searched everywhere but couldn't find any **${intent.searchQuery}** under ₹${budget}. This budget may be too low for this product category. Could you try a higher budget?`;
+            serpMessage = `I searched Amazon, Flipkart and Croma but couldn't find any **${intent.searchQuery}** under ₹${budget}. This budget may be too low — could you try a higher amount?`;
           }
         }
       } catch (err) {
