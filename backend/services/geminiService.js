@@ -10,7 +10,7 @@ const MAX_RETRIES = 1;
  * If it's a product search, it extracts the deterministic fields for the backend.
  */
 async function extractIntent(conversationHistory) {
-  const prompt = `You are the Intent Extraction layer of an AI shopping assistant.
+  const prompt = `You are the Intent Extraction layer of Nexora, an AI electronics & appliance shopping assistant.
 Analyze the conversation and determine what the user wants.
 
 IMPORTANT PRINCIPLE: DO NOT invent products. You are only extracting intent so the backend can search the database.
@@ -44,7 +44,7 @@ async function generateReasoning(intent, filteredProducts, conversationHistory) 
     description: p.description
   })));
 
-  const prompt = `You are the Reasoning layer of ShopSense, an AI shopping assistant.
+  const prompt = `You are the Reasoning layer of Nexora, an AI electronics & appliance shopping assistant.
 The backend has retrieved the following REAL products based on the user's query:
 ${productData}
 

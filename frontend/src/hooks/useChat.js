@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://ai-shopping-agent-wp5h.onrender.com';
 
-const WELCOME = "Hi! I'm **ShopSense** 🛍️ — your AI shopping assistant.\n\nTell me what you're looking for and I'll help you find the perfect product. I'll ask a couple of smart questions before recommending anything.\n\nWhat are you shopping for today?";
+const WELCOME = "Hi! I'm **Nexora** 🛍️ — your AI electronics & appliance shopping assistant.\n\nTell me what you're looking for and I'll help you find the perfect product. I'll ask a couple of smart questions before recommending anything.\n\nWhat are you shopping for today?";
 
 export function useChat(sessionId) {
   const [messages, setMessages] = useState([]);

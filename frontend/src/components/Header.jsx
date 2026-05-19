@@ -29,10 +29,10 @@ export default function Header() {
               color: '#2C1A0E', lineHeight: 1.1,
               letterSpacing: '-0.01em',
             }}>
-              ShopSense
+              Nexora
             </div>
             <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              AI Shopping Agent
+              AI Electronics Agent
             </div>
           </div>
         </div>
