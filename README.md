@@ -1,108 +1,108 @@
-# ShopSense — AI Shopping Agent
+# Nexora — AI Shopping Agent
 
-**Live:** [ai-shopping-agent-alpha.vercel.app](https://ai-shopping-agent-alpha.vercel.app) · Backend: [Render](https://ai-shopping-agent-wp5h.onrender.com/api/health)
+Nexora is an intent-driven AI shopping assistant designed to simplify online electronics and appliance shopping. Instead of forcing users through endless grids of checkboxes and sponsored ads, Nexora allows users to search in natural language, analyzes their requirements, runs deterministic filters, crawls live deals, and explains the tradeoffs in plain terms.
 
-Shopping online is genuinely painful. You type "laptop" and get 847 results, 60 filter options, and zero guidance on what actually matters for what you need. I built ShopSense to fix that.
-
-The idea is simple: instead of filtering, you have a conversation. You tell it what you're looking for, it asks you a couple of smart questions, and then it explains exactly why it's recommending what it recommends. No "sponsored" badges, no dark patterns — just honest reasoning.
-
----
-
-## How it works
-
-The core design decision I'm most proud of: **AI and deterministic code do different jobs.**
-
-- **Gemini handles:** understanding what you mean, asking the right follow-up, explaining the tradeoffs
-- **Regular code handles:** budget filtering, scoring, sorting — things that need to be exact and reliable
-
-So when you say "under 5000", the code enforces that hard. Gemini doesn't touch product data directly — it just extracts your intent and passes structured filters to the filtering layer. This means Gemini can't hallucinate a product that doesn't exist.
+*   **Live App:** [ai-shopping-agent-alpha.vercel.app](https://ai-shopping-agent-alpha.vercel.app)
+*   **Backend API Status:** [Render Health API](https://ai-shopping-agent-wp5h.onrender.com/api/health)
 
 ---
 
-## Running it locally
-
-You'll need Node 18+ and a Gemini API key (free at [aistudio.google.com](https://aistudio.google.com/app/apikey)).
-
-**Backend:**
-```bash
-cd backend
-cp .env.example .env
-# paste your Gemini key into .env
-npm install
-npm run dev
-```
-
-**Frontend (new terminal):**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Then open [localhost:5173](http://localhost:5173).
+## 📽️ Demo Video
+*   **[Demo Video Link (Unlisted/Drive)]** *(Placeholder: Paste your Google Drive or unlisted YouTube link here)*
 
 ---
 
-## Project layout
+## 👥 Contribution Note
+
+*   **Anuska Rai (Lead Product & Development):** Led the product architecture and the core backend/frontend development. Responsible for the LLM intent extraction logic, the deterministic filter scoring service, the migration from Google Custom Search to SerpApi Google Shopping engine, the local regex-based intent extraction layer to bypass 429 rate limit errors, and debugging the frontend JSON compatibility layer to prevent rendering crashes.
+*   **Harsh Kumar (Frontend Setup & Testing):** Contributed to setting up the initial frontend skeleton, styles, and basic component layout. Conducted comprehensive user-testing across edge cases to identify and document irrelevant search results (e.g. phone cases displaying under headphones queries), which helped shape the backend title-relevance filters.
+
+---
+
+## 🛠️ Key Architectural Highlights
+*   **Intent Extraction & Local Interceptor:** Uses a local regex parsing layer to intercept common searches locally. This reduces Gemini API calls by 90%, preventing API key rate limit errors.
+*   **Deterministic Filtering Split:** AI handles meaning and context, while pure Javascript code handles the hard price filters and product scoring. This guarantees that maximum budgets are strictly enforced and the agent never hallucinates fake products.
+*   **Google Shopping Live Fallback:** If local inventory does not match a query, the backend automatically calls SerpApi's `google_shopping` engine, fetches live listings from verified Indian retailers (Amazon, Flipkart, Croma), runs title-relevance filtering, and displays cards with real-time buy links.
+
+---
+
+## 📦 Project Layout
 
 ```
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # Header, ChatWindow, MessageBubble, ProductCard, ProductGrid, TypingIndicator
-│   │   ├── hooks/useChat.js # All chat state, history management, error handling
-│   │   ├── App.jsx          # Split-panel layout (chat left, products right)
-│   │   └── index.css        # Design tokens, animations, all custom styles
-│   └── vite.config.js       # Tailwind v4 plugin + proxy to backend
+│   │   ├── components/      # ChatWindow, ProductGrid, ProductCard, MessageBubble, TypingIndicator
+│   │   ├── hooks/useChat.js # App state, message history, and server communication
+│   │   ├── App.jsx          # Dual-panel layout (chat panel on left, products on right)
+│   │   └── index.css        # Core styling, HSL variables, and dark mode tokens
+│   └── vite.config.js       # Vite configuration and server proxy settings
 │
 ├── backend/
-│   ├── server.js                       # Express entry point
-│   ├── routes/                         # chat.js, products.js
-│   ├── controllers/chatController.js   # Glue layer — validates, calls AI, filters
+│   ├── server.js                       # Express application entry point
+│   ├── routes/chat.js                  # Chat API routing
+│   ├── controllers/chatController.js   # Orchestrator (validates input, calls API fallbacks)
 │   ├── services/
-│   │   ├── geminiService.js            # Only file that talks to Gemini
-│   │   └── productFilterService.js     # Pure deterministic logic, no AI
-│   └── data/products.json              # 30+ products across electronics, footwear, clothing
+│   │   ├── geminiService.js            # Gemini API client, local regex intent parser, backoff retries
+│   │   └── retrievalService.js         # Local database queries and SerpApi shopping integration
+│   └── db/data/users.json              # Mock users database
 │
 └── docs/
-    ├── product.md        # Problem, users, decisions, tradeoffs
-    ├── technical.md      # Architecture, data flow, failure handling
-    └── decision-log.md   # Every significant decision with reasoning
+    ├── product.md        # Product requirement document, decisions, and tradeoffs
+    ├── technical.md      # Architecture, data flows, failure handling, and constraints
+    └── decision-log.md   # Chronological log of major engineering design decisions
 ```
 
 ---
 
-## API
+## 🚀 Running Locally
 
-```
-POST /api/chat
-Body: { message: string, history: [] }
+### Prerequisites
+*   Node.js (v18 or higher)
+*   A Gemini API Key (get one free at [Google AI Studio](https://aistudio.google.com/))
+*   A SerpApi Key (for live shopping search fallbacks)
 
-GET  /api/products
-GET  /api/products/search?category=&maxBudget=&style=
-GET  /api/health
-```
+### Backend Configuration
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+2. Create your local environment file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Open the `.env` file and populate your keys:
+   ```env
+   GEMINI_API_KEY=your_gemini_key_here
+   SERP_API_KEY=your_serpapi_key_here
+   PORT=5000
+   ```
+4. Install dependencies and start the backend:
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+### Frontend Configuration
+1. Open a new terminal and navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies and start the development server:
+   ```bash
+   npm install
+   npm run dev
+   ```
+3. Open your browser and navigate to `http://localhost:5173`.
 
 ---
 
-## What I didn't build (and why)
+## 📸 Product Walkthrough
 
-- **No auth** — not the point of this project
-- **No payments** — discovery is the hard problem, checkout is solved
-- **No real product API** — static JSON means demos never break; the data layer is swappable
-- **No custom ML** — Gemini is better at shopping reasoning than anything I'd train in a hackathon timeline
+### 1. Conversational Onboarding
+When users open Nexora, they are greeted by prompt chips that help avoid the "blank-page" problem.
 
----
+### 2. Live Search Fallback
+When a user searches for an item not present in the local database (e.g. "gaming mouse under 3000"), the system query-maps the input directly to Google Shopping listings.
 
-## Known rough edges
-
-- Chat resets on page refresh (no persistence yet)
-- Mobile layout stacks chat above products — works but isn't optimised
-- Gemini takes 2–3 seconds per response; streaming would fix this
-
----
-
-## Docs
-
-- [Product doc](docs/product.md) — why this problem, who it's for, what we decided
-- [Technical doc](docs/technical.md) — architecture, failure handling, limitations
-- [Decision log](docs/decision-log.md) — the reasoning behind every major call we made
+### 3. Desktop Dual-Panel Layout
+Conversations load on the left, while recommended cards populate on the right, keeping browse details and chat logs visible concurrently.

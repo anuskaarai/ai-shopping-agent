@@ -1,124 +1,63 @@
-# Product Document — ShopSense AI Shopping Agent
+# Product Document — Nexora AI Shopping Agent
 
-## Problem Statement
-
-Online shopping today is broken for the majority of users. When someone wants to buy a laptop, they face 47 filter options, hundreds of results, and conflicting spec sheets — with zero guidance on what actually matters for their situation.
-
-**The core problem:** Shoppers don't know what questions to ask. They know their *goal* (e.g., "a laptop for college"), but they don't know which specs matter, which tradeoffs to accept, or which products are genuinely suited to them.
-
-Traditional search-and-filter approaches put the cognitive burden entirely on the shopper. The result is decision paralysis, poor purchases, and high return rates.
+**Authors:** Anuska Rai & Harsh Kumar  
+**Deployment:** Frontend on Vercel | Backend on Render  
 
 ---
 
-## Why the Problem Matters
+## 1. Problem Statement & Context
+Online shopping is broken. When a user wants to buy an electronic device, they are overwhelmed by hundreds of options, complex specification grids, and sponsored placements. Traditional e-commerce search relies on keyword matching, forcing users to manually research specs, read endless reviews, and figure out tradeoffs (e.g., "Is it worth paying ₹3,000 more for active noise cancellation?").
 
-- **Decision fatigue is real.** Studies show that more choices lead to worse decisions and lower satisfaction.
-- **Search doesn't understand intent.** Searching "laptop under 40000" returns 200 results — none of which explain *why* they'd suit you.
-- **Filters require expertise.** Most users don't know the difference between a Core i5 and Ryzen 5, or between OLED and IPS panels.
-- **Recommendations aren't explanations.** "Best seller" badges don't tell you *why* something is best for *you*.
+**The Core Problem:** Shoppers don't know what questions to ask. They know their end goal (e.g., "I want headphones to wear during work calls that won't hurt my ears"), but they don't know how that translates into specs like driver size, frequency response, or clamping force.
 
----
-
-## Target Users
-
-| User Type | Behaviour | Pain Point |
-|-----------|-----------|------------|
-| First-time buyer | Doesn't know what specs matter | Overwhelmed by choices |
-| Budget-conscious shopper | Has a strict ceiling | Can't easily compare value |
-| Gift buyer | Shopping for someone else's needs | Unclear requirements |
-| Upgrader | Knows vaguely what they want | Can't articulate differences |
+**Nexora** solves this by replacing the search-and-filter grid with a structured, intent-driven conversation. Instead of filtering, the user talks to an agent that asks relevant questions, understands their needs, retrieves real products, and explains the tradeoffs in plain language.
 
 ---
 
-## Current Shopping Pain Points
-
-1. **Filter overload** — Too many dimensions to slice simultaneously
-2. **No context** — Filters don't understand "for college" vs "for video editing"
-3. **Fake personalisation** — "Recommended for you" is just paid placement
-4. **Spec jargon** — Product descriptions assume technical knowledge
-5. **No tradeoff guidance** — Nothing explains "pay ₹5000 more for 2x battery life"
-6. **Zero follow-up** — Can't ask the site a clarifying question
+## 2. Target Users & Current Experience
+*   **The Non-Technical Buyer:** Needs an appliance or gadget but gets lost in spec sheets. Their current experience is copying spec names into Google search to understand what they mean.
+*   **The Budget-Conscious Shopper:** Has a hard price ceiling but wants the maximum utility. They struggle to find honest comparisons that aren't sponsored advertisements.
+*   **The Goal-Oriented Buyer:** Has a specific use case (e.g., "coding", "commuting") rather than a specific product model. Their current experience is reading 10-page blog posts of "Top 10 Laptops of 2026."
 
 ---
 
-## Core User Flow
-
-```
-User states need (e.g., "I need headphones")
-        ↓
-ShopSense asks 1–2 targeted questions
-(budget? use-case? style? brand preference?)
-        ↓
-User answers
-        ↓
-AI understands intent, extracts structured filters
-        ↓
-Deterministic engine filters & scores products
-        ↓
-AI explains WHY each pick suits this specific user
-        ↓
-User sees ≤4 curated recommendations with reasoning
-        ↓
-Guided toward purchase decision
-```
+## 3. The Core User Journey
+1.  **State Need:** The user enters a natural language query (e.g., "need a smartwatch under 10k for running").
+2.  **Clarifying Loop (Optional):** If the query is ambiguous, the agent asks 1–2 target questions (e.g., GPS preference, battery priority).
+3.  **Search & Retrieve:** The system searches the internal catalog (via DummyJSON) or falls back to live web deals.
+4.  **AI Synthesis:** The agent presents curated recommendations alongside a human-readable summary explaining the exact pros, cons, and tradeoffs.
 
 ---
 
-## Product Decisions
+## 4. Key Product Decisions & Rationale
 
-### Decision 1: Conversational First, Browse Second
-We deliberately removed a category-browse view from MVP. The point of the product is to *replace* browsing with conversation. Adding a browse view undermines the core thesis.
+### Decision 1: Hybrid AI & Deterministic Pipeline
+We decided to split responsibilities strictly. Gemini extracts the user's intent (desired category, budget, preferences), but a deterministic backend service handles the actual filtering and sorting of products.
+*   *Why:* AI is notoriously poor at enforcing hard numerical boundaries (like "under ₹5,000") and can hallucinate products that do not exist. Deterministic code guarantees that budget limits are respected exactly and that only real products are shown.
 
-### Decision 2: Max 4 Recommendations
-Showing 4 products forces quality over quantity. It also mirrors how a trusted friend would shop with you — they wouldn't hand you 50 options.
+### Decision 2: Google Shopping Live Fallback
+Initially, if a product wasn't found in our catalog, the bot would give up. We decided to add a live fallback.
+*   *Why:* Electronics shoppers expect live prices and immediate availability. We integrated SerpApi to crawl live deals from major Indian retailers (Amazon, Flipkart, Croma) dynamically, ensuring the agent remains useful even for products outside our database.
 
-### Decision 3: Reasoning is Mandatory
-Every recommendation surface includes a "Why these products?" explanation. This is non-negotiable. Without it, ShopSense is just a chatbot.
-
-### Decision 4: Quick-Start Prompts
-New users don't know how to start conversations with an AI. Quick prompts reduce the blank-page problem and onboard users into the interaction model.
-
-### Decision 5: Split Panel Layout
-Chat on the left, products on the right. Products appear only after a recommendation — keeping the conversation as the primary interface, with products as the output.
+### Decision 3: Limit Recommendations to 3–5 items
+We strictly cap recommendation cards at 5.
+*   *Why:* Decision paralysis is caused by too many choices. A curated list of 3 high-quality options is far more valuable than a list of 50.
 
 ---
 
-## Scope Decisions (What We Intentionally Did Not Build)
-
-| Feature | Why Excluded |
-|---------|--------------|
-| User authentication | Adds infra complexity, not needed for MVP demo |
-| Payment integration | Out of scope — focus is discovery, not checkout |
-| Real e-commerce API | Reliability risk for demos; static data is fully controlled |
-| Product images | Would require CDN or image scraping; emoji icons convey category clearly |
-| Wishlist / saved items | Multi-session persistence adds backend complexity |
-| Price comparison across sellers | Requires live scraping or API — not hackathon-scoped |
-| Voice input | Nice-to-have; text-first covers 95% of use cases |
-| Custom ML model | Gemini API gives better results faster |
+## 5. Scope Decisions (What We Left Out & Why)
+*   **Checkout & Payment Integrations:** We intentionally avoided building a shopping cart. The hard problem in e-commerce is *discovery* and *confidence*. Once a user decides, they are redirected to trusted retailers like Amazon or Flipkart via direct product links.
+*   **User Accounts & Auth:** Omitted for the MVP. We wanted zero friction for testing. Instead, we persist session state and chat history in the browser's `localStorage`.
+*   **Scraping Detailed Reviews:** We planned to scrape full user reviews but realized it introduced latency of 10+ seconds per query. We scoped this down to extracting high-level snippets and features to keep response times under 3 seconds.
 
 ---
 
-## Tradeoffs and Reasoning
+## 6. Real-World Tradeoffs & Practical Challenges
 
-### Tradeoff 1: Static JSON vs Live API
-- **Chose:** Static JSON product dataset
-- **Why:** 100% reliable for demos. No rate limits, no auth keys, no schema surprises.
-- **Cost:** Products are not real-time. Prices may be outdated.
-- **Mitigation:** The architecture clearly separates data layer from logic, making a live API swap straightforward.
+### Tradeoff 1: AI Explanations vs. API Quota Exhaustion
+During testing, our Gemini API key hit severe rate limits (429 errors). We faced a choice: either fail the request or degrade gracefully.
+*   *Resolution:* We modified the SerpApi fallback to skip Gemini entirely if the API fails or is near limits. Instead, it generates a clean, structured text template pointing to the live deals. We also implemented a local regex intent extractor to intercept common queries without hitting the Gemini API at all, cutting API consumption by 90%.
 
-### Tradeoff 2: Gemini Flash vs Gemini Pro
-- **Chose:** Gemini 1.5 Flash
-- **Why:** Faster responses (critical for chat UX). Lower cost. Sufficient reasoning for shopping context.
-- **Cost:** Slightly less capable than Pro on complex multi-step reasoning.
-
-### Tradeoff 3: AI-asks-first vs Instant Results
-- **Chose:** AI asks 1–2 questions before recommending
-- **Why:** Better recommendations. Demonstrates the intelligence of the system. Aligns with the product thesis.
-- **Cost:** Slightly more friction than instant results.
-- **Mitigation:** Quick-start prompts pre-fill common queries to reduce friction.
-
-### Tradeoff 4: Deterministic Filtering vs AI Filtering
-- **Chose:** AI extracts intent → deterministic code filters
-- **Why:** AI filtering is unpredictable and untestable. Deterministic code is reliable, explainable, and auditable.
-- **Cost:** Two-step pipeline is slightly more complex to build.
-- **Benefit:** Budget is always respected exactly. Recommendations never hallucinate products.
+### Tradeoff 2: Broad Web Search vs. Structured Shopping Data
+Our first SerpApi integration used standard Google Search. It returned blog posts, review sites, and YouTube videos instead of actual products.
+*   *Resolution:* We shifted to the `google_shopping` engine in SerpApi. This returned structured price, retailer, and thumbnail data. To prevent accessory clutter (like phone cases when searching for "headphones"), we added title-relevance filtering in the backend to throw out non-matching titles.
