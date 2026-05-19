@@ -5,8 +5,12 @@ import { CheckCircle, XCircle, Star, Tag, Zap, ShoppingCart } from 'lucide-react
  * (merged in by the controller from Gemini's recommendations[])
  */
 export default function ProductCard({ product, delay = 0 }) {
-  const { name, brand, price, rating, style, useCase, features, subcategory,
-    matchScore = null, pros = [], cons = [] } = product;
+  const { 
+    name = 'Product', brand = '', price = 0, rating = 4.5, 
+    style = 'casual', useCase = [], features = [], subcategory = '',
+    matchScore = null, pros = [], cons = [], link = null, imageUrl = null,
+    description = ''
+  } = product || {};
 
   const stars = Math.round(rating);
   const formattedPrice = new Intl.NumberFormat('en-IN', {

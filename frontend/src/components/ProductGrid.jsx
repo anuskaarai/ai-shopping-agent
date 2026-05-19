@@ -3,10 +3,12 @@ import ProductCard from './ProductCard';
 import PreferenceSummary from './PreferenceSummary';
 
 export default function ProductGrid({ products, reasoning, whyNot, preferences }) {
-  if (!products || products.length === 0) return null;
+  // Always ensure products is a safe array — never call .map() on undefined
+  const safeProducts = Array.isArray(products) ? products : [];
+  if (safeProducts.length === 0) return null;
 
   // Check if we have at least one tradeoff note across products
-  const tradeoffNote = products.find(p => p.tradeoff)?.tradeoff || '';
+  const tradeoffNote = safeProducts.find(p => p.tradeoff)?.tradeoff || '';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
@@ -26,7 +28,7 @@ export default function ProductGrid({ products, reasoning, whyNot, preferences }
             Best Picks For You
           </div>
           <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-            {products.length} recommendation{products.length !== 1 ? 's' : ''}
+            {safeProducts.length} recommendation{safeProducts.length !== 1 ? 's' : ''}
           </div>
         </div>
       </div>
@@ -53,8 +55,8 @@ export default function ProductGrid({ products, reasoning, whyNot, preferences }
 
       {/* Product cards — pros/cons/matchScore are embedded on each product */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {products.map((product, i) => (
-          <ProductCard key={product.id} product={product} delay={i * 80} />
+        {safeProducts.map((product, i) => (
+          <ProductCard key={product.id || `p-${i}`} product={product} delay={i * 80} />
         ))}
       </div>
 

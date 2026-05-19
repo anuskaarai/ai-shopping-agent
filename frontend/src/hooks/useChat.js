@@ -67,10 +67,20 @@ export function useChat(sessionId) {
         { timeout: 60000 }
       );
 
-      const {
-        message, products: recs, reasoning: why, type, _fallback,
-        preferences: prefs, whyNot: excluded,
-      } = response.data;
+      // 🔍 Debug: log exact API response shape
+      console.log('[useChat] API response received:', response.data);
+
+      const data = response.data || {};
+      const message = data.message || data.explanation || 'I had trouble processing that.';
+      const type = data.type || 'question';
+      const _fallback = data._fallback;
+      const why = data.reasoning || '';
+      const excluded = data.whyNot || '';
+      const prefs = data.preferences || {};
+
+      // Safe product extraction — try multiple keys, always default to []
+      const rawRecs = data.products || data.results || data.items || [];
+      const recs = Array.isArray(rawRecs) ? rawRecs : [];
 
       const aiMsg = {
         id: `ai-${Date.now()}`,
@@ -85,9 +95,9 @@ export function useChat(sessionId) {
       if (prefs && Object.keys(prefs).length > 0) setPreferences(prefs);
 
       if (type === 'recommendation') {
-        if (recs?.length > 0) setProducts(recs);
-        setReasoning(why || '');
-        setWhyNot(excluded || '');
+        if (recs.length > 0) setProducts(recs);
+        setReasoning(why);
+        setWhyNot(excluded);
       }
 
       geminiHistory.current = [
