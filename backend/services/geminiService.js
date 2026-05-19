@@ -5,66 +5,71 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 // ─────────────────────────────────────────────────────────
 // REGEX-BASED INTENT EXTRACTOR — uses ZERO Gemini API calls
-// Handles 90% of product search queries locally.
+// Handles any product search locally.
 // ─────────────────────────────────────────────────────────
 function extractIntentLocal(text) {
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().trim();
 
-  // Detect greetings / pure chat
-  const chatPatterns = /^(hi|hello|hey|good morning|good evening|good night|how are you|what can you do|help|thanks|thank you|bye|okay|ok|sure|yes|no|hmm|interesting)\b/i;
-  if (chatPatterns.test(lower) && lower.split(' ').length < 5) {
+  // 1. Detect pure greetings / very short chat (< 6 words, no product hint)
+  const greetingPatterns = /^(hi|hello|hey|good morning|good evening|good night|how are you|what can you do|help me|thanks|thank you|bye|okay|ok|sure|yes|no|hmm|interesting|great|cool|nice|got it|understood)\b/i;
+  const wordCount = lower.split(/\s+/).length;
+  if (greetingPatterns.test(lower) && wordCount < 6) {
     return { action: 'chat', message: null, searchQuery: null, maxBudget: null, minBudget: null, category: null, preferences: [] };
   }
 
-  // Extract budget — matches "5000", "₹5000", "5k", "under 10000", "below 20k", "budget of 15000"
+  // 2. Extract budget — handles "5000", "₹5000", "5k", "50,000", "under 10000", "below 20k"
   let maxBudget = null;
-  const budgetMatch = lower.match(/(?:under|below|within|budget(?:\s+of)?|less\s+than|max|upto|up\s+to|around|approx(?:imately)?)?[\s₹rs.]*(\d[\d,]*)\s*(?:k|thousand)?/);
+  const budgetMatch = lower.match(/(?:under|below|within|budget(?:\s+of)?|less\s+than|max(?:imum)?|upto|up\s+to|around|approx(?:imately)?|rs\.?|inr|₹)[\s]*(\d[\d,]*)(\s*k|\s*thousand|\s*lakh)?/);
   if (budgetMatch) {
     let val = parseInt(budgetMatch[1].replace(/,/g, ''), 10);
-    if (lower.includes('k') || lower.includes('thousand')) val *= 1000;
-    if (val >= 100) maxBudget = val; // ignore tiny numbers like "1 product"
+    const unit = (budgetMatch[2] || '').trim().toLowerCase();
+    if (unit === 'k' || unit === 'thousand') val *= 1000;
+    if (unit === 'lakh') val *= 100000;
+    if (val >= 200) maxBudget = val; // ignore tiny numbers like "1 phone"
+  }
+  // Also catch plain "5000" at end of sentence
+  if (!maxBudget) {
+    const plainNum = lower.match(/\b(\d{4,6})\b/);
+    if (plainNum) maxBudget = parseInt(plainNum[1], 10);
   }
 
-  // Detect product keywords
-  const productKeywords = [
-    'tv', 'smart tv', 'television', 'led tv', 'oled', 'qled',
-    'laptop', 'notebook', 'macbook',
-    'phone', 'smartphone', 'mobile', 'iphone', 'android',
-    'headphones', 'earphones', 'earbuds', 'headset', 'airpods',
-    'speaker', 'bluetooth speaker', 'soundbar',
-    'washing machine', 'washer',
-    'refrigerator', 'fridge',
-    'air conditioner', 'ac', 'cooler',
-    'camera', 'dslr', 'mirrorless',
-    'tablet', 'ipad',
-    'smartwatch', 'watch',
-    'printer',
-    'router', 'wifi',
-    'monitor', 'display',
-    'keyboard', 'mouse',
-    'microwave', 'oven',
-    'fan', 'air purifier',
-    'trimmer', 'shaver',
-  ];
+  // 3. Detect search intent signals
+  const searchSignals = /\b(buy|purchase|get|want|need|looking for|suggest|recommend|find|show|search|best|good|cheap|affordable|under|below|budget|worth|which|compare|vs|versus|review|top|list)\b/i;
+  const hasSearchSignal = searchSignals.test(lower);
 
+  // 4. Extract the product query — everything except budget/filler words
   let searchQuery = null;
-  for (const kw of productKeywords) {
-    if (lower.includes(kw)) {
-      searchQuery = kw;
-      break;
+
+  // Try explicit intent patterns first
+  const explicitMatch = lower.match(
+    /(?:looking for|want(?:ing)?|need(?:ing)?|find me|suggest|recommend|buy|get me|show me|search for|best)\s+(?:a\s+|an\s+|the\s+|some\s+)?([a-z0-9 \-]+?)(?:\s+(?:under|below|within|for|with|around|between|budget|less|upto|up\s+to|worth|good|best|cheap|affordable|in\s+india|in\s+₹|rs|inr|₹|\d)|$)/i
+  );
+  if (explicitMatch) {
+    searchQuery = explicitMatch[1].trim().replace(/\s+/g, ' ');
+  }
+
+  // Fallback: strip budget/filler words and use whatever's left as the query
+  if (!searchQuery) {
+    let cleaned = lower
+      .replace(/(?:under|below|within|budget(?:\s+of)?|less\s+than|max(?:imum)?|upto|up\s+to|around|for\s+my|with\s+a|i\s+want|i\s+need|please|can\s+you|help\s+me|looking\s+for|best|good|cheap|affordable|buy|purchase|get\s+me|show\s+me|suggest|recommend|find)/gi, '')
+      .replace(/(?:₹|rs\.?|inr)?\s*\d[\d,]*\s*(?:k|thousand|lakh)?/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (cleaned.length > 2 && cleaned.split(' ').length <= 8) {
+      searchQuery = cleaned;
     }
   }
 
-  // If no known keyword found, try to extract noun phrase after "looking for", "want", "need", "find", "suggest", "recommend"
-  if (!searchQuery) {
-    const intentMatch = lower.match(/(?:looking for|want(?:ing)?|need(?:ing)?|find|suggest|recommend|buy|purchase|get me|show me)\s+(?:a\s+|an\s+|the\s+)?([a-z0-9 ]+?)(?:\s+under|\s+below|\s+within|\s+for|\s+with|\s+around|$)/i);
-    if (intentMatch) searchQuery = intentMatch[1].trim();
-  }
-
-  if (!searchQuery) {
-    // Can't determine intent locally — signal that Gemini should handle it
+  // 5. If no search signal and no clear product, treat as chat
+  if (!searchQuery || (!hasSearchSignal && wordCount < 4)) {
+    // Let Gemini handle ambiguous short queries
     return null;
   }
+
+  // Clean up the query
+  searchQuery = searchQuery.replace(/[^a-z0-9 \-]/gi, '').trim();
+  if (!searchQuery) return null;
 
   return {
     action: 'search',
@@ -72,7 +77,7 @@ function extractIntentLocal(text) {
     searchQuery,
     maxBudget,
     minBudget: null,
-    category: searchQuery,
+    category: searchQuery.split(' ')[0], // first word as broad category
     preferences: []
   };
 }
