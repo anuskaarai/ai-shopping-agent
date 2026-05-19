@@ -72,20 +72,24 @@ Return strictly JSON matching this structure:
 
 async function makeGeminiCall(history, systemInstruction) {
   let lastError = null;
+  const maxRetries = 2;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await axios.post(
-        `${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`,
+        GEMINI_API_URL,
         {
           system_instruction: { parts: [{ text: systemInstruction }] },
           contents: history,
           generationConfig: {
-            temperature: 0.3, // Lower temperature for more deterministic JSON
+            temperature: 0.3,
             responseMimeType: 'application/json',
           },
         },
-        { timeout: 15000 }
+        { 
+          headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY },
+          timeout: 15000 
+        }
       );
 
       const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -97,7 +101,17 @@ async function makeGeminiCall(history, systemInstruction) {
     } catch (err) {
       lastError = err;
       console.error(`[Gemini] Attempt ${attempt + 1} failed:`, err?.response?.data || err.message);
-      if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
+      
+      if (attempt < maxRetries) {
+        if (err.response?.status === 429) {
+          const waitTime = attempt === 0 ? 2000 : 4000;
+          console.warn(`[Gemini] 429 Rate Limit. Retrying in ${waitTime}ms...`);
+          await new Promise((r) => setTimeout(r, waitTime));
+        } else {
+          // Fallback delay for non-429 errors just in case
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
     }
   }
 

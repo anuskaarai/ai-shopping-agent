@@ -92,19 +92,49 @@ async function handleChat(req, res) {
 
             const prompt = `You are Nexora, a shopping assistant. The user wants ${intent.searchQuery} under ₹${budget}.
 Here are live search results from India: ${JSON.stringify(rawResults)}
-Summarize them, rank them best to worst, and explain why each fits the budget. 
-Be concise. Format as a numbered list and make sure to include the actual Markdown links (e.g. [Product Name](link)) so the user can click them!`;
+Select a maximum of 3 product recommendations from these results. 
+Keep your entire explanation under 100 words total. 
+Do not use bullet points. Write exactly 1 sentence per product explaining why it fits. 
+Include the Markdown links (e.g. [Product Name](link)).`;
 
-            console.log(`[ChatController] Sending prompt to Gemini for search parsing...`);
-            const geminiRes = await axios.post(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-              { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } }
-            );
+            console.log(`[ChatController] Delaying 1 second before Gemini call...`);
+            await new Promise(r => setTimeout(r, 1000));
 
-            const explanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            console.log(`[ChatController] Gemini response received. Length: ${explanation ? explanation.length : 'none'}`);
-            if (explanation) {
+            console.log(`[ChatController] Sending prompt to Gemini for search parsing (with retries)...`);
+            
+            let explanation = null;
+            let geminiSuccess = false;
+            let retries = 0;
+            const maxRetries = 2;
+            
+            while (retries <= maxRetries && !geminiSuccess) {
+              try {
+                const geminiRes = await axios.post(
+                  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+                  { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } },
+                  { headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY } }
+                );
+                explanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                geminiSuccess = true;
+              } catch (geminiErr) {
+                if (geminiErr.response?.status === 429 && retries < maxRetries) {
+                  retries++;
+                  const waitTime = retries === 1 ? 2000 : 4000;
+                  console.warn(`[ChatController] Gemini 429 Rate Limit. Retrying in ${waitTime}ms... (Attempt ${retries})`);
+                  await new Promise(r => setTimeout(r, waitTime));
+                } else {
+                  console.error('[ChatController] Gemini call failed permanently:', geminiErr.message);
+                  break;
+                }
+              }
+            }
+
+            if (geminiSuccess && explanation) {
               googleResults = explanation;
+              console.log(`[ChatController] Gemini response received. Length: ${explanation.length}`);
+            } else {
+              console.log('[ChatController] Skipping Gemini due to failure, returning just links.');
+              googleResults = "Here are the top results I found for you:";
             }
           } else {
             console.log(`[ChatController] SerpApi returned 0 items.`);
@@ -117,7 +147,9 @@ Be concise. Format as a numbered list and make sure to include the actual Markdo
       if (googleResults) {
         return res.json({
           type: 'recommendation',
-          message: `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${googleResults}`,
+          message: googleResults === "Here are the top results I found for you:" 
+            ? googleResults 
+            : `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${googleResults}`,
           preferences: intent.preferences || {},
           products: serpProducts,
           filters: {}
@@ -132,16 +164,24 @@ If their budget is completely unrealistic for this item (e.g. a Smart TV under �
 If the budget is realistic but I just couldn't find anything, give them a few general recommendations based on your knowledge of the current market.`;
             
       const axios = require('axios');
-      const geminiRes = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5 } }
-      );
-
-      const fallbackExplanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      let fallbackExplanation = null;
+      try {
+        const geminiRes = await axios.post(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+          { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5 } },
+          { headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY } }
+        );
+        fallbackExplanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      } catch (err) {
+        console.error('[ChatController] Final fallback Gemini call failed:', err.message);
+        fallbackExplanation = "I'm having trouble connecting to my AI brain right now. Please try again later.";
+      }
       
       return res.json({
         type: 'recommendation',
-        message: `I couldn't find live results right now, but based on your budget of ₹${budget}, here are my recommendations for ${intent.searchQuery}:\n\n${fallbackExplanation}`,
+        message: fallbackExplanation === "I'm having trouble connecting to my AI brain right now. Please try again later."
+          ? fallbackExplanation
+          : `I couldn't find live results right now, but based on your budget of ₹${budget}, here are my recommendations for ${intent.searchQuery}:\n\n${fallbackExplanation}`,
         preferences: intent.preferences || {},
         products: [],
         filters: {}
