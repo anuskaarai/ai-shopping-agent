@@ -36,20 +36,33 @@ async function handleChat(req, res) {
 
     if (filteredProducts.length === 0) {
       // 🚀 FALLBACK: Use Google Custom Search if DummyJSON fails
+      let googleResults = null;
+      let budget = intent.maxBudget || 10000;
+      
       try {
         const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
         const key = process.env.GOOGLE_API_KEY;
+        
+        console.log(`[ChatController] GOOGLE_SEARCH_ENGINE_ID (first 6): ${cx ? cx.substring(0, 6) : 'MISSING'}`);
+        console.log(`[ChatController] GOOGLE_API_KEY (first 6): ${key ? key.substring(0, 6) : 'MISSING'}`);
+
         if (cx && key) {
           console.log(`[ChatController] No internal products found. Triggering Google Web Search for: ${intent.searchQuery}`);
           const axios = require('axios');
-          const budget = intent.maxBudget || 10000;
           const query = `${intent.searchQuery} under ₹${budget} buy site:amazon.in OR site:flipkart.com OR site:croma.com`;
           
-          const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
+          console.log(`[ChatController] Google Search Query constructed: "${query}"`);
+          const googleUrl = 'https://www.googleapis.com/customsearch/v1';
+          console.log(`[ChatController] Calling Google URL: ${googleUrl} (params hidden)`);
+          
+          const response = await axios.get(googleUrl, {
             params: { key, cx, q: query, num: 5 }
           });
 
+          console.log(`[ChatController] Google response status: ${response.status}`);
+          
           if (response.data.items && response.data.items.length > 0) {
+            console.log(`[ChatController] Google returned ${response.data.items.length} items. First item: ${response.data.items[0].title}`);
             const rawResults = response.data.items.map(item => ({
               title: item.title, link: item.link, snippet: item.snippet
             }));
@@ -59,30 +72,53 @@ Here are live search results: ${JSON.stringify(rawResults)}
 Summarize them, rank them best to worst, and explain why each fits the budget. 
 Be concise. Format as a numbered list and make sure to include the actual Markdown links (e.g. [Product Name](link)) so the user can click them!`;
 
+            console.log(`[ChatController] Sending prompt to Gemini for search parsing...`);
             const geminiRes = await axios.post(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
               { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3 } }
             );
 
             const explanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            console.log(`[ChatController] Gemini response received. Length: ${explanation ? explanation.length : 'none'}`);
             if (explanation) {
-              return res.json({
-                type: 'recommendation',
-                message: `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${explanation}`,
-                preferences: intent.preferences || {},
-                products: [],
-                filters: {}
-              });
+              googleResults = explanation;
             }
+          } else {
+            console.log(`[ChatController] Google returned 0 items.`);
           }
         }
       } catch (err) {
-        console.error('[ChatController] Google Search Fallback failed:', err.message);
+        console.error('[ChatController] Google Search Fallback failed:', err.response?.data || err.message);
       }
 
+      if (googleResults) {
+        return res.json({
+          type: 'recommendation',
+          message: `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${googleResults}`,
+          preferences: intent.preferences || {},
+          products: [],
+          filters: {}
+        });
+      }
+
+      // Final fallback: Ask Gemini to use its own knowledge if everything else failed (0 results, missing keys, or error)
+      console.log(`[ChatController] Live search failed or returned 0 results. Falling back to Gemini knowledge.`);
+      const prompt = `You are Nexora, an AI electronics shopping agent. The user is looking for "${intent.searchQuery}" with a max budget of ₹${budget}. 
+I did a live web search for them but couldn't find any results. 
+If their budget is completely unrealistic for this item (e.g. a Smart TV under ₹5000), tell them honestly that it doesn't exist and suggest what the actual minimum realistic budget would be.
+If the budget is realistic but I just couldn't find anything, give them a few general recommendations based on your knowledge of the current market.`;
+            
+      const axios = require('axios');
+      const geminiRes = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.5 } }
+      );
+
+      const fallbackExplanation = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      
       return res.json({
-        type: 'question',
-        message: `I looked everywhere, but I couldn't find any "${intent.searchQuery}" that matched your exact criteria. Could you broaden your search or adjust your budget?`,
+        type: 'recommendation',
+        message: `I couldn't find live results right now, but based on your budget of ₹${budget}, here are my recommendations for ${intent.searchQuery}:\n\n${fallbackExplanation}`,
         preferences: intent.preferences || {},
         products: [],
         filters: {}
