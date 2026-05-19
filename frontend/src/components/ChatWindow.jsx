@@ -6,7 +6,7 @@ import TypingIndicator from './TypingIndicator';
 const QUICK_PROMPTS = [
   "Headphones under ₹5000 for WFH",
   "Best laptop for college student",
-  "Running shoes for gym",
+  "Smart TV for small bedroom",
   "Smartwatch under ₹10000",
   "Gaming setup budget ₹15000",
 ];
@@ -56,8 +56,8 @@ export default function ChatWindow({ messages, isLoading, onSend }) {
                   onClick={() => onSend(prompt)}
                   style={{
                     padding: '0.45rem 0.875rem', borderRadius: '999px',
-                    border: '1px solid rgba(139,90,43,0.22)',
-                    background: 'rgba(139,90,43,0.06)',
+                    border: '1px solid var(--border)',
+                    background: 'transparent',
                     color: 'var(--text-secondary)',
                     fontSize: '0.78rem', cursor: 'pointer',
                     transition: 'all 0.18s ease', fontFamily: 'inherit',
@@ -65,12 +65,12 @@ export default function ChatWindow({ messages, isLoading, onSend }) {
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'var(--accent-primary)';
                     e.currentTarget.style.color = 'var(--text-primary)';
-                    e.currentTarget.style.background = 'rgba(139,90,43,0.12)';
+                    e.currentTarget.style.background = 'var(--accent-glow)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(139,90,43,0.22)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
                     e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.background = 'rgba(139,90,43,0.06)';
+                    e.currentTarget.style.background = 'transparent';
                   }}
                 >
                   {prompt}
@@ -85,24 +85,24 @@ export default function ChatWindow({ messages, isLoading, onSend }) {
       {/* Input bar */}
       <div style={{
         padding: '0.875rem 0.75rem 1rem',
-        borderTop: '1px solid rgba(139,90,43,0.12)',
-        background: 'rgba(245,239,230,0.85)',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--bg-primary)',
         backdropFilter: 'blur(12px)',
       }}>
         <div
           style={{
             display: 'flex', gap: '0.625rem', alignItems: 'flex-end',
             background: 'var(--bg-input)',
-            border: '1.5px solid rgba(139,90,43,0.2)',
+            border: '1.5px solid var(--border)',
             borderRadius: '1rem', padding: '0.5rem 0.5rem 0.5rem 1rem',
             transition: 'border-color 0.2s, box-shadow 0.2s',
           }}
           onFocusCapture={(e) => {
             e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,90,43,0.1)';
+            e.currentTarget.style.boxShadow = 'var(--shadow-glow)';
           }}
           onBlurCapture={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(139,90,43,0.2)';
+            e.currentTarget.style.borderColor = 'var(--border)';
             e.currentTarget.style.boxShadow = 'none';
           }}
         >

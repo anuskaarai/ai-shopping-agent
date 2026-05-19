@@ -120,7 +120,7 @@ export default function App() {
         }}>
           {/* Chat */}
           <div style={{
-            borderRight: hasProducts ? '1px solid rgba(139,90,43,0.12)' : 'none',
+            borderRight: hasProducts ? '1px solid var(--border)' : 'none',
             overflow: 'hidden', display: 'flex', flexDirection: 'column',
           }}>
             <ChatWindow messages={messages} isLoading={isLoading} onSend={sendMessage} />
@@ -131,8 +131,8 @@ export default function App() {
             <div style={{
               padding: '1.25rem 1rem',
               overflowY: 'auto',
-              background: 'rgba(237,228,211,0.6)',
-              borderLeft: '1px solid rgba(139,90,43,0.1)',
+              background: 'var(--bg-secondary)',
+              borderLeft: '1px solid var(--border)',
             }}>
               <ProductGrid
                 products={products}

@@ -4,8 +4,8 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
   return (
     <div style={{
       width: '260px',
-      background: 'rgba(237,228,211,0.95)',
-      borderRight: '1px solid rgba(139,90,43,0.15)',
+      background: 'var(--bg-secondary)',
+      borderRight: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column',
       height: 'calc(100vh - 64px)',
@@ -57,7 +57,7 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
                 alignItems: 'center',
                 gap: '0.6rem',
                 padding: '0.6rem 0.75rem',
-                background: session.id === currentSessionId ? 'rgba(139,90,43,0.1)' : 'transparent',
+                background: session.id === currentSessionId ? 'var(--accent-glow)' : 'transparent',
                 border: 'none',
                 borderRadius: '8px 0 0 8px',
                 color: session.id === currentSessionId ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -68,13 +68,13 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
                 transition: 'background 0.2s',
               }}
               onMouseEnter={(e) => {
-                if (session.id !== currentSessionId) e.currentTarget.style.background = 'rgba(139,90,43,0.05)';
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'var(--accent-glow)';
               }}
               onMouseLeave={(e) => {
                 if (session.id !== currentSessionId) e.currentTarget.style.background = 'transparent';
               }}
             >
-              <MessageSquare size={14} color={session.id === currentSessionId ? '#8B5E3C' : 'var(--text-muted)'} />
+              <MessageSquare size={14} color={session.id === currentSessionId ? 'var(--accent-primary)' : 'var(--text-muted)'} />
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
                 {session.title}
               </span>
@@ -82,7 +82,7 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
             <button
               onClick={() => onDeleteSession(session.id)}
               style={{
-                background: session.id === currentSessionId ? 'rgba(139,90,43,0.1)' : 'transparent',
+                background: session.id === currentSessionId ? 'var(--accent-glow)' : 'transparent',
                 border: 'none',
                 color: 'var(--text-muted)',
                 cursor: 'pointer',
@@ -93,8 +93,8 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
                 transition: 'color 0.2s'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#c0392b';
-                if (session.id !== currentSessionId) e.currentTarget.style.background = 'rgba(139,90,43,0.05)';
+                e.currentTarget.style.color = '#ef4444';
+                if (session.id !== currentSessionId) e.currentTarget.style.background = 'var(--accent-glow)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.color = 'var(--text-muted)';
@@ -113,12 +113,12 @@ export default function Sidebar({ user, sessions, currentSessionId, onSelectSess
         )}
       </div>
 
-      <div style={{ padding: '1rem', borderTop: '1px solid rgba(139,90,43,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {user?.avatar ? (
             <img src={user.avatar} alt="Profile" style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
           ) : (
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(139,90,43,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8B5E3C', fontWeight: 'bold' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
               {user?.name?.charAt(0) || 'U'}
             </div>
           )}

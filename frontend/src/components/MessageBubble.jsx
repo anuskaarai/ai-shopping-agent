@@ -15,12 +15,12 @@ export default function MessageBubble({ message }) {
         width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
         background: isUser
-          ? 'linear-gradient(135deg, #8B5E3C, #A0522D)'
-          : isError ? 'rgba(180,60,60,0.12)'
-          : 'rgba(139,90,43,0.12)',
+          ? 'var(--user-bubble)'
+          : isError ? 'rgba(239,68,68,0.12)'
+          : 'var(--accent-glow)',
         border: isUser ? 'none'
-          : isError ? '1px solid rgba(180,60,60,0.3)'
-          : '1px solid rgba(139,90,43,0.22)',
+          : isError ? '1px solid rgba(239,68,68,0.3)'
+          : '1px solid var(--border)',
       }}>
         {isUser ? '👤' : isError ? '⚠️' : '🤖'}
       </div>
@@ -31,17 +31,17 @@ export default function MessageBubble({ message }) {
         padding: '0.875rem 1.125rem',
         borderRadius: isUser ? '1.125rem 1.125rem 4px 1.125rem' : '1.125rem 1.125rem 1.125rem 4px',
         background: isUser
-          ? 'linear-gradient(135deg, #8B5E3C, #A0522D)'
-          : isError ? 'rgba(180,60,60,0.08)'
+          ? 'var(--user-bubble)'
+          : isError ? 'rgba(239,68,68,0.08)'
           : 'var(--ai-bubble)',
         border: isUser ? 'none'
-          : isError ? '1px solid rgba(180,60,60,0.2)'
+          : isError ? '1px solid rgba(239,68,68,0.2)'
           : '1px solid var(--border)',
-        color: isUser ? '#fff8f0' : 'var(--text-primary)',
+        color: isUser ? '#ffffff' : 'var(--text-primary)',
         fontSize: '0.9rem', lineHeight: 1.65, wordBreak: 'break-word',
       }}>
         {isError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem', color: '#c0392b', fontSize: '0.75rem', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.3rem', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
             <AlertTriangle size={12} /> Something went wrong
           </div>
         )}
@@ -52,8 +52,8 @@ export default function MessageBubble({ message }) {
           <ReactMarkdown
             components={{
               p: ({ children }) => <p style={{ margin: '0 0 0.5rem 0' }}>{children}</p>,
-              strong: ({ children }) => <strong style={{ color: '#6B4226', fontWeight: 700 }}>{children}</strong>,
-              em: ({ children }) => <em style={{ color: '#8B5E3C' }}>{children}</em>,
+              strong: ({ children }) => <strong style={{ color: 'var(--accent-secondary)', fontWeight: 700 }}>{children}</strong>,
+              em: ({ children }) => <em style={{ color: 'var(--accent-primary)' }}>{children}</em>,
               ul: ({ children }) => <ul style={{ paddingLeft: '1.25rem', margin: '0.4rem 0' }}>{children}</ul>,
               li: ({ children }) => <li style={{ marginBottom: '0.2rem' }}>{children}</li>,
             }}

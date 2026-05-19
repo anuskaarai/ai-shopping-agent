@@ -42,12 +42,12 @@ export default function ProductCard({ product, delay = 0 }) {
       style={{ animationDelay: `${delay}ms`, padding: '1.125rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', overflow: 'hidden' }}
     >
       {/* Top accent line */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #8B5E3C, #A0522D, transparent)', opacity: 0.5 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, var(--accent-primary), var(--accent-secondary), transparent)', opacity: 0.5 }} />
 
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
-          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(139,90,43,0.1)', border: '1px solid rgba(139,90,43,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--accent-glow)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
             {categoryEmoji}
           </div>
           <div style={{ minWidth: 0 }}>
@@ -69,7 +69,7 @@ export default function ProductCard({ product, delay = 0 }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: '2px' }}>
           {[1,2,3,4,5].map((i) => (
-            <Star key={i} size={11} fill={i <= stars ? '#b87333' : 'transparent'} color={i <= stars ? '#b87333' : '#c4a882'} />
+            <Star key={i} size={11} fill={i <= stars ? 'var(--warning)' : 'transparent'} color={i <= stars ? 'var(--warning)' : 'var(--text-muted)'} />
           ))}
         </div>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{rating}</span>
@@ -83,14 +83,14 @@ export default function ProductCard({ product, delay = 0 }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem' }}>
           {pros.map((p, i) => (
             <div key={`pro-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
-              <CheckCircle size={12} color="#5a7f4e" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span style={{ fontSize: '0.74rem', color: '#3d5c35', lineHeight: 1.4 }}>{p}</span>
+              <CheckCircle size={12} color="var(--success)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ fontSize: '0.74rem', color: 'var(--success)', lineHeight: 1.4 }}>{p}</span>
             </div>
           ))}
           {cons.map((c, i) => (
             <div key={`con-${i}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
-              <XCircle size={12} color="#c0392b" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span style={{ fontSize: '0.74rem', color: '#8B3A2A', lineHeight: 1.4 }}>{c}</span>
+              <XCircle size={12} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{c}</span>
             </div>
           ))}
         </div>
@@ -100,7 +100,7 @@ export default function ProductCard({ product, delay = 0 }) {
       {pros.length === 0 && features?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
           {features.slice(0, 3).map((f) => (
-            <span key={f} style={{ padding: '2px 8px', borderRadius: '6px', background: 'rgba(139,90,43,0.08)', border: '1px solid rgba(139,90,43,0.15)', fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{f}</span>
+            <span key={f} style={{ padding: '2px 8px', borderRadius: '6px', background: 'var(--accent-glow)', border: '1px solid var(--border)', fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{f}</span>
           ))}
         </div>
       )}
@@ -114,7 +114,7 @@ export default function ProductCard({ product, delay = 0 }) {
       )}
 
       {/* Price + CTA */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.625rem', borderTop: '1px solid rgba(139,90,43,0.12)', marginTop: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.625rem', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <Tag size={10} color="var(--text-muted)" />
