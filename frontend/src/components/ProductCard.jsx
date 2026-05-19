@@ -125,36 +125,51 @@ export default function ProductCard({ product, delay = 0 }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
-          <a
-            href={`https://duckduckgo.com/?q=!ducky+${encodeURIComponent(name)}+site%3Aamazon.in`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-glow"
-            style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center' }}
-            title="Open direct product on Amazon"
-          >
-            Amazon
-          </a>
-          <a
-            href={`https://duckduckgo.com/?q=!ducky+${encodeURIComponent(name)}+site%3Aflipkart.com`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-glow"
-            style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center', background: 'rgba(20, 100, 255, 0.05)' }}
-            title="Open direct product on Flipkart"
-          >
-            Flipkart
-          </a>
-          <a
-            href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(name)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-glow"
-            style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center', background: 'rgba(200, 50, 50, 0.05)' }}
-            title="Search on Google Shopping"
-          >
-            Web
-          </a>
+          {link ? (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-glow"
+              style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center' }}
+              title="View Product"
+            >
+              View Product
+            </a>
+          ) : (
+            <>
+              <a
+                href={`https://duckduckgo.com/?q=!ducky+${encodeURIComponent(name)}+site%3Aamazon.in`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-glow"
+                style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center' }}
+                title="Open direct product on Amazon"
+              >
+                Amazon
+              </a>
+              <a
+                href={`https://duckduckgo.com/?q=!ducky+${encodeURIComponent(name)}+site%3Aflipkart.com`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-glow"
+                style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center', background: 'rgba(20, 100, 255, 0.05)' }}
+                title="Open direct product on Flipkart"
+              >
+                Flipkart
+              </a>
+              <a
+                href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-glow"
+                style={{ textDecoration: 'none', padding: '0.3rem 0.6rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flex: 1, justifyContent: 'center', background: 'rgba(200, 50, 50, 0.05)' }}
+                title="Search on Google Shopping"
+              >
+                Web
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>

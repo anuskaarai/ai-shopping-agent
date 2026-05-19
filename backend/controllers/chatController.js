@@ -35,40 +35,63 @@ async function handleChat(req, res) {
     const filteredProducts = deterministicFilter(rawProducts, intent);
 
     if (filteredProducts.length === 0) {
-      // 🚀 FALLBACK: Use Google Custom Search if DummyJSON fails
+      // 🚀 FALLBACK: Use SerpApi if DummyJSON fails
       let googleResults = null;
+      let serpProducts = [];
       let budget = intent.maxBudget || 10000;
       
       try {
-        const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
-        const key = process.env.GOOGLE_API_KEY;
+        const apiKey = process.env.SERP_API_KEY;
         
-        console.log(`[ChatController] GOOGLE_SEARCH_ENGINE_ID (first 6): ${cx ? cx.substring(0, 6) : 'MISSING'}`);
-        console.log(`[ChatController] GOOGLE_API_KEY (first 6): ${key ? key.substring(0, 6) : 'MISSING'}`);
+        console.log(`[ChatController] SERP_API_KEY (first 6): ${apiKey ? apiKey.substring(0, 6) : 'MISSING'}`);
 
-        if (cx && key) {
-          console.log(`[ChatController] No internal products found. Triggering Google Web Search for: ${intent.searchQuery}`);
+        if (apiKey) {
+          console.log(`[ChatController] No internal products found. Triggering SerpApi Search for: ${intent.searchQuery}`);
           const axios = require('axios');
-          const query = `${intent.searchQuery} under ₹${budget} buy site:amazon.in OR site:flipkart.com OR site:croma.com`;
+          const query = `${intent.searchQuery} under ₹${budget} buy`;
           
-          console.log(`[ChatController] Google Search Query constructed: "${query}"`);
-          const googleUrl = 'https://www.googleapis.com/customsearch/v1';
-          console.log(`[ChatController] Calling Google URL: ${googleUrl} (params hidden)`);
+          console.log(`[ChatController] SerpApi Search Query constructed: "${query}"`);
+          const serpUrl = 'https://serpapi.com/search.json';
           
-          const response = await axios.get(googleUrl, {
-            params: { key, cx, q: query, num: 5 }
+          const response = await axios.get(serpUrl, {
+            params: {
+              api_key: apiKey,
+              q: query,
+              location: "India",
+              hl: "en",
+              gl: "in",
+              num: 5
+            }
           });
 
-          console.log(`[ChatController] Google response status: ${response.status}`);
+          console.log(`[ChatController] SerpApi response status: ${response.status}`);
           
-          if (response.data.items && response.data.items.length > 0) {
-            console.log(`[ChatController] Google returned ${response.data.items.length} items. First item: ${response.data.items[0].title}`);
-            const rawResults = response.data.items.map(item => ({
-              title: item.title, link: item.link, snippet: item.snippet
+          if (response.data.organic_results && response.data.organic_results.length > 0) {
+            console.log(`[ChatController] SerpApi returned ${response.data.organic_results.length} items.`);
+            
+            const rawResults = response.data.organic_results.map(item => ({
+              title: item.title,
+              link: item.link,
+              snippet: item.snippet,
+              thumbnail: item.thumbnail || null
+            }));
+
+            // Map to product cards format
+            serpProducts = rawResults.map((item, index) => ({
+              id: `serp_${index}`,
+              name: item.title,
+              price: budget, // best guess based on query
+              rating: 4.5, // placeholder
+              brand: intent.searchQuery,
+              style: 'premium',
+              features: [item.snippet ? item.snippet.substring(0, 50) + '...' : 'Great choice'],
+              imageUrl: item.thumbnail,
+              description: item.snippet,
+              link: item.link
             }));
 
             const prompt = `You are Nexora, a shopping assistant. The user wants ${intent.searchQuery} under ₹${budget}.
-Here are live search results: ${JSON.stringify(rawResults)}
+Here are live search results from India: ${JSON.stringify(rawResults)}
 Summarize them, rank them best to worst, and explain why each fits the budget. 
 Be concise. Format as a numbered list and make sure to include the actual Markdown links (e.g. [Product Name](link)) so the user can click them!`;
 
@@ -84,11 +107,11 @@ Be concise. Format as a numbered list and make sure to include the actual Markdo
               googleResults = explanation;
             }
           } else {
-            console.log(`[ChatController] Google returned 0 items.`);
+            console.log(`[ChatController] SerpApi returned 0 items.`);
           }
         }
       } catch (err) {
-        console.error('[ChatController] Google Search Fallback failed:', err.response?.data || err.message);
+        console.error('[ChatController] SerpApi Search Fallback failed:', err.response?.data || err.message);
       }
 
       if (googleResults) {
@@ -96,12 +119,12 @@ Be concise. Format as a numbered list and make sure to include the actual Markdo
           type: 'recommendation',
           message: `I couldn't find exact matches in my internal database, but I scoured the web for live options!\n\n${googleResults}`,
           preferences: intent.preferences || {},
-          products: [],
+          products: serpProducts,
           filters: {}
         });
       }
 
-      // Final fallback: Ask Gemini to use its own knowledge if everything else failed (0 results, missing keys, or error)
+      // Final fallback: Ask Gemini to use its own knowledge if everything else failed
       console.log(`[ChatController] Live search failed or returned 0 results. Falling back to Gemini knowledge.`);
       const prompt = `You are Nexora, an AI electronics shopping agent. The user is looking for "${intent.searchQuery}" with a max budget of ₹${budget}. 
 I did a live web search for them but couldn't find any results. 

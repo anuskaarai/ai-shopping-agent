@@ -13,30 +13,37 @@ async function searchProducts(req, res) {
   let rawResults = [];
   let googleSearchFailed = false;
 
-  // 1 & 2. Call Google Custom Search API
+  // 1 & 2. Call SerpApi
   try {
-    const query = `${category} under ₹${budget} buy site:amazon.in OR site:flipkart.com OR site:croma.com`;
-    const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
-    const key = process.env.GOOGLE_API_KEY;
+    const query = `${category} under ₹${budget} buy`;
+    const apiKey = process.env.SERP_API_KEY;
 
-    if (!cx || !key) {
-      throw new Error("Missing Google Search API keys");
+    if (!apiKey) {
+      throw new Error("Missing SERP_API_KEY");
     }
 
-    const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
-      params: { key, cx, q: query, num: 5 }
+    const response = await axios.get('https://serpapi.com/search.json', {
+      params: { 
+        api_key: apiKey,
+        q: query,
+        location: "India",
+        hl: "en",
+        gl: "in",
+        num: 5
+      }
     });
 
-    // 3. Extract title, link, snippet
-    if (response.data.items) {
-      rawResults = response.data.items.map(item => ({
+    // 3. Extract title, link, snippet, thumbnail
+    if (response.data.organic_results) {
+      rawResults = response.data.organic_results.map(item => ({
         title: item.title,
         link: item.link,
-        snippet: item.snippet
+        snippet: item.snippet,
+        thumbnail: item.thumbnail || null
       }));
     }
   } catch (err) {
-    console.error("[SearchController] Google Search failed:", err.message);
+    console.error("[SearchController] SerpApi Search failed:", err.message);
     googleSearchFailed = true;
   }
 
