@@ -108,11 +108,16 @@ As required by the evaluation criteria, please refer to the following documents 
 
 ## 📸 Product Walkthrough
 
-### 1. Conversational Onboarding
+### 1. Welcome & Authentication Screen
+Nexora features a clean, unified sign-in flow to access the assistant dashboard.
+![Welcome Screen](./docs/assets/welcome_screen.png)
+
+### 2. Conversational Onboarding
 When users open Nexora, they are greeted by prompt chips that help avoid the "blank-page" problem.
 
-### 2. Live Search Fallback
-When a user searches for an item not present in the local database (e.g. "gaming mouse under 3000"), the system query-maps the input directly to Google Shopping listings.
+### 3. Live Search Fallback
+When a user searches for an item not present in the local database (e.g. "washing machine under 50000"), the system query-maps the input directly to Google Shopping listings via SerpApi.
 
-### 3. Desktop Dual-Panel Layout
-Conversations load on the left, while recommended cards populate on the right, keeping browse details and chat logs visible concurrently.
+### 4. Desktop Dual-Panel Layout
+Conversations load on the left, while recommended cards populate on the right, keeping search deals and reasoning details visible concurrently.
+![Chat Screen](./docs/assets/chat_screen.png)
