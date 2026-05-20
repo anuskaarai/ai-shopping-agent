@@ -8,7 +8,7 @@ Nexora is an intent-driven AI shopping assistant designed to simplify online ele
 ---
 
 ## 📽️ Demo Video
-*   **[Demo Video Link (Unlisted/Drive)]** *(Placeholder: Paste your Google Drive or unlisted YouTube link here)*
+*   **[Watch Demo Video on YouTube](https://www.youtube.com/watch?v=NqAeaMPsNRI)**
 
 ---
 
