@@ -7,26 +7,26 @@ Nexora is an intent-driven AI shopping assistant designed to simplify online ele
 
 ---
 
-## 📽️ Demo Video
+## Demo Video
 *   **[Watch Demo Video on YouTube](https://www.youtube.com/watch?v=NqAeaMPsNRI)**
 
 ---
 
-## 👥 Contribution Note
+## Contribution Note
 
 *   **Anuska Rai (Lead Product & Development):** Led the product architecture and the core backend/frontend development. Responsible for the LLM intent extraction logic, the deterministic filter scoring service, the migration from Google Custom Search to SerpApi Google Shopping engine, the local regex-based intent extraction layer to bypass 429 rate limit errors, and debugging the frontend JSON compatibility layer to prevent rendering crashes.
 *   **Harsh Kumar (Frontend Setup & Testing):** Contributed to setting up the initial frontend skeleton, styles, and basic component layout. Conducted comprehensive user-testing across edge cases to identify and document irrelevant search results (e.g. phone cases displaying under headphones queries), which helped shape the backend title-relevance filters.
 
 ---
 
-## 🛠️ Key Architectural Highlights
+## Key Architectural Highlights
 *   **Intent Extraction & Local Interceptor:** Uses a local regex parsing layer to intercept common searches locally. This reduces Gemini API calls by 90%, preventing API key rate limit errors.
 *   **Deterministic Filtering Split:** AI handles meaning and context, while pure Javascript code handles the hard price filters and product scoring. This guarantees that maximum budgets are strictly enforced and the agent never hallucinates fake products.
 *   **Google Shopping Live Fallback:** If local inventory does not match a query, the backend automatically calls SerpApi's `google_shopping` engine, fetches live listings from verified Indian retailers (Amazon, Flipkart, Croma), runs title-relevance filtering, and displays cards with real-time buy links.
 
 ---
 
-## 📁 Required Documentation Links
+## Required Documentation Links
 
 As required by the evaluation criteria, please refer to the following documents for our architectural design and build log:
 
@@ -36,7 +36,7 @@ As required by the evaluation criteria, please refer to the following documents 
 
 ---
 
-## 📦 Project Layout
+## Project Layout
 
 ```
 ├── frontend/
@@ -64,7 +64,7 @@ As required by the evaluation criteria, please refer to the following documents 
 
 ---
 
-## 🚀 Running Locally
+## Running Locally
 
 ### Prerequisites
 *   Node.js (v18 or higher)
@@ -106,7 +106,7 @@ As required by the evaluation criteria, please refer to the following documents 
 
 ---
 
-## 📸 Product Walkthrough
+## Product Walkthrough
 
 ### 1. Welcome & Authentication Screen
 Nexora features a clean, unified sign-in flow to access the assistant dashboard.
